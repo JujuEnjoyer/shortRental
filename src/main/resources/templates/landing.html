@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Short Rental — для арендодателей</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="shell">
+    <header class="topbar">
+        <div class="brand">Short<span>Rental</span></div>
+        <div class="row">
+            <a class="btn btn-ghost" th:href="@{/login}">Войти</a>
+            <a class="btn btn-primary" th:href="@{/register}">Регистрация</a>
+        </div>
+    </header>
+
+    <section class="hero">
+        <h1>Один кабинет для квартир, календарей и переписки с гостями</h1>
+        <p class="lead">
+            Подключайте ICS с Авито, Островка и других площадок, ведите брони в одном месте
+            и отвечайте гостям через единый интерфейс — с заделом под открытые API и почтовый relay.
+        </p>
+        <div class="actions">
+            <a class="btn btn-primary" th:href="@{/register}">Создать аккаунт</a>
+            <a class="btn btn-ghost" th:href="@{/login}">Уже есть аккаунт</a>
+        </div>
+    </section>
+</div>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Договор аренды</title>
+    <style>
+        body { font-family: 'DejaVu Serif', serif; font-size: 12pt; line-height: 1.5; color: #000; margin: 40px; }
+        h1 { text-align: center; font-size: 16pt; margin-bottom: 24px; }
+        h2 { font-size: 13pt; margin-top: 20px; margin-bottom: 10px; }
+        p { margin: 6px 0; }
+        .field { font-weight: bold; }
+        .section { margin-top: 16px; }
+        .signatures { margin-top: 40px; display: flex; justify-content: space-between; }
+        .signature-block { width: 45%; }
+        .signature-line { margin-top: 40px; border-top: 1px solid #000; padding-top: 6px; font-size: 10pt; }
+        table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+        td, th { border: 1px solid #000; padding: 6px 10px; text-align: left; font-size: 11pt; }
+    </style>
+</head>
+<body>
+<h1>ДОГОВОР АРЕНДЫ ЖИЛОГО ПОМЕЩЕНИЯ</h1>
+
+<div class="section">
+    <p>г. <span class="field" th:text="${propertyAddress}">________</span></p>
+    <p th:text="'«' + ${#temporals.format(#temporals.createNow(), 'dd')} + '» ' + ${#temporals.format(#temporals.createNow(), 'MMMM yyyy')} + ' г.'">________</p>
+</div>
+
+<div class="section">
+    <p><strong>Арендодатель:</strong> <span class="field" th:text="${landlordName}">________</span></p>
+    <p><strong>Арендатор:</strong> <span class="field" th:text="${guestName}">________</span></p>
+    <p><strong>Паспорт:</strong> <span class="field" th:text="${passportSeries}">________</span> <span class="field" th:text="${passportNumber}">________</span></p>
+    <p><strong>Выдан:</strong> <span class="field" th:text="${passportIssuedBy}">________</span></p>
+    <p><strong>Дата выдачи:</strong> <span class="field" th:text="${passportIssueDate}">________</span></p>
+    <p><strong>Дата рождения:</strong> <span class="field" th:text="${birthDate}">________</span></p>
+</div>
+
+<div class="section">
+    <h2>1. Предмет договора</h2>
+    <p>Арендодатель передает, а Арендатор принимает во временное владение и пользование жилое помещение по адресу: <span class="field" th:text="${propertyAddress}">________</span> (далее — Помещение).</p>
+</div>
+
+<div class="section">
+    <h2>2. Срок аренды</h2>
+    <p>Срок аренды: с <span class="field" th:text="${startDate}">________</span> по <span class="field" th:text="${endDate}">________</span>.</p>
+</div>
+
+<div class="section">
+    <h2>3. Арендная плата</h2>
+    <p>Арендная плата составляет: ________ руб. в сутки.</p>
+    <p>Аванс: <span class="field" th:text="${advancePayment}">________</span> руб.</p>
+    <p th:if="${additionalTerms}">Дополнительные условия: <span class="field" th:text="${additionalTerms}">________</span></p>
+</div>
+
+<div class="section">
+    <h2>4. Подписи сторон</h2>
+    <div class="signatures">
+        <div class="signature-block">
+            <p><strong>Арендодатель:</strong></p>
+            <p th:text="${landlordName}">________</p>
+            <div class="signature-line">_____________ / ___________________</div>
+        </div>
+        <div class="signature-block">
+            <p><strong>Арендатор:</strong></p>
+            <p th:text="${guestName}">________</p>
+            <div class="signature-line">_____________ / ___________________</div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

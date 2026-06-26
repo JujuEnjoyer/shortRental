@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Анкета гостя — Short Rental</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="shell" style="max-width:700px;">
+    <div class="brand" style="margin-bottom:20px;">Short<span>Rental</span></div>
+
+    <div th:if="${error}" class="card">
+        <p class="muted" th:text="${error}">Ошибка</p>
+    </div>
+
+    <!-- ========== Document Fill Mode ========== -->
+    <div th:if="${mode == 'document' && !error}" class="card">
+        <h1 style="font-size:1.2rem; margin-top:0;" th:text="'Заполнение: ' + ${document.title}">Документ</h1>
+        <p class="muted" id="statusLine">Ознакомьтесь с договором и заполните данные ниже.</p>
+
+        <!-- Contract preview -->
+        <div th:if="${bodyHtml != null}" class="document-preview">
+            <div th:utext="${bodyHtml}"></div>
+        </div>
+
+        <!-- Guest form -->
+        <form id="guestDataForm" class="landlord-form" style="display:grid;">
+            <input name="passportSeries" placeholder="Серия паспорта" maxlength="16">
+            <input name="passportNumber" placeholder="Номер паспорта" maxlength="32">
+            <input name="passportIssuedBy" placeholder="Кем выдан" maxlength="512">
+            <input name="passportIssueDate" type="date" placeholder="Дата выдачи">
+            <input name="birthDate" type="date" placeholder="Дата рождения">
+            <input name="guestPhone" type="tel" placeholder="Телефон" maxlength="32">
+            <hr style="border:none;border-top:1px solid var(--border);margin:4px 0;">
+            <label class="composer-label">Фото паспорта (разворот с фото)</label>
+            <input name="passportPhoto1" type="file" accept="image/*">
+            <label class="composer-label">Фото паспорта (прописка/регистрация)</label>
+            <input name="passportPhoto2" type="file" accept="image/*">
+            <div class="photo-previews">
+                <img id="preview1" style="display:none;max-width:200px;border-radius:8px;border:1px solid var(--border);">
+                <img id="preview2" style="display:none;max-width:200px;border-radius:8px;border:1px solid var(--border);">
+            </div>
+            <button class="btn btn-primary" type="submit">Отправить на проверку</button>
+        </form>
+        <div id="doneMsg" class="status ok" style="display:none;">
+            <p>Спасибо, данные отправлены арендодателю на проверку.</p>
+        </div>
+    </div>
+
+    <!-- ========== Guest Data Collection Mode ========== -->
+    <div th:if="${mode == 'guest' && !error}" class="card">
+        <h1 style="font-size:1.2rem; margin-top:0;">Данные для заселения</h1>
+        <p class="muted" id="statusLine">Проверка ссылки…</p>
+        <form id="guestDataForm" class="landlord-form" style="display:none;">
+            <input name="passportSeries" placeholder="Серия паспорта" maxlength="16">
+            <input name="passportNumber" placeholder="Номер паспорта" maxlength="32">
+            <input name="passportIssuedBy" placeholder="Кем выдан" maxlength="512">
+            <input name="passportIssueDate" type="date" placeholder="Дата выдачи">
+            <input name="birthDate" type="date" placeholder="Дата рождения">
+            <input name="guestPhone" type="tel" placeholder="Телефон" maxlength="32">
+            <hr style="border:none;border-top:1px solid var(--border);margin:4px 0;">
+            <label class="composer-label">Фото паспорта (разворот с фото)</label>
+            <input name="passportPhoto1" type="file" accept="image/*">
+            <label class="composer-label">Фото паспорта (прописка/регистрация)</label>
+            <input name="passportPhoto2" type="file" accept="image/*">
+            <div class="photo-previews">
+                <img id="preview1" style="display:none;max-width:200px;border-radius:8px;border:1px solid var(--border);">
+                <img id="preview2" style="display:none;max-width:200px;border-radius:8px;border:1px solid var(--border);">
+            </div>
+            <button class="btn btn-primary" type="submit">Сохранить</button>
+        </form>
+        <div id="doneMsg" class="status ok" style="display:none;">Спасибо, данные сохранены. Можно закрыть страницу.</div>
+    </div>
+</div>
+<script th:inline="javascript">
+    const token = /*[[${token}]]*/ "";
+    const mode = /*[[${mode}]]*/ "guest";
+    const statusLine = document.getElementById("statusLine");
+    const form = document.getElementById("guestDataForm");
+
+    function showPreview(input, previewId) {
+        const preview = document.getElementById(previewId);
+        const file = input.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = e => { preview.src = e.target.result; preview.style.display = "block"; };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    async function check() {
+        if (mode === "document") {
+            statusLine.textContent = "Ознакомьтесь с договором и заполните данные.";
+            form.style.display = "grid";
+            return;
+        }
+        const r = await fetch(`/api/public/guest-data/${encodeURIComponent(token)}/status`);
+        const j = await r.json();
+        if (!j.valid) {
+            statusLine.textContent = j.message || "Ссылка недействительна.";
+            return;
+        }
+        statusLine.textContent = "Заполните поля ниже — их увидит только ваш арендодатель в личном кабинете.";
+        form.style.display = "grid";
+    }
+
+    form.querySelector('input[name="passportPhoto1"]').addEventListener("change", function () {
+        showPreview(this, "preview1");
+    });
+    form.querySelector('input[name="passportPhoto2"]').addEventListener("change", function () {
+        showPreview(this, "preview2");
+    });
+
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const textBody = {
+            passportSeries: fd.get("passportSeries") || null,
+            passportNumber: fd.get("passportNumber") || null,
+            passportIssuedBy: fd.get("passportIssuedBy") || null,
+            passportIssueDate: fd.get("passportIssueDate") || null,
+            birthDate: fd.get("birthDate") || null,
+            guestPhone: fd.get("guestPhone") || null
+        };
+        if (textBody.passportIssueDate === "") textBody.passportIssueDate = null;
+        if (textBody.birthDate === "") textBody.birthDate = null;
+
+        let submitUrl = `/api/public/guest-data/${encodeURIComponent(token)}`;
+        let submitHeaders = { "Content-Type": "application/json" };
+        if (mode === "document") {
+            submitUrl = `/api/public/documents/${encodeURIComponent(token)}/fill`;
+        }
+
+        const r = await fetch(submitUrl, {
+            method: "POST",
+            headers: submitHeaders,
+            body: JSON.stringify(textBody)
+        });
+        if (!r.ok) {
+            const t = await r.text();
+            statusLine.textContent = t || "Ошибка сохранения";
+            return;
+        }
+
+        const p1 = fd.get("passportPhoto1");
+        const p2 = fd.get("passportPhoto2");
+        if ((p1 && p1.size) || (p2 && p2.size)) {
+            const fd2 = new FormData();
+            if (p1 && p1.size) fd2.append("photo1", p1);
+            if (p2 && p2.size) fd2.append("photo2", p2);
+            const photoUrl = mode === "document"
+                ? `/api/public/documents/${encodeURIComponent(token)}/photos`
+                : `/api/public/guest-data/${encodeURIComponent(token)}/photos`;
+            const r2 = await fetch(photoUrl, {
+                method: "POST",
+                body: fd2
+            });
+            if (!r2.ok) {
+                statusLine.textContent = "Данные сохранены, но фото не загрузились";
+                return;
+            }
+        }
+
+        form.style.display = "none";
+        document.getElementById("doneMsg").style.display = "block";
+        statusLine.textContent = "";
+    });
+
+    check().catch(() => { statusLine.textContent = "Не удалось проверить ссылку."; });
+</script>
+</body>
+</html>

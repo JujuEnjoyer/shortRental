@@ -1,0 +1,2012 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кабинет — Short Rental</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="shell">
+    <header class="topbar">
+        <div class="brand">Short<span>Rental</span>
+            <span class="pill" sec:authentication="name">user</span>
+        </div>
+        <div class="row">
+            <form th:action="@{/logout}" method="post">
+                <button class="btn btn-ghost" type="submit">Выйти</button>
+            </form>
+        </div>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="Разделы кабинета">
+        <button type="button" class="tab active" role="tab" aria-selected="true" data-tab="cal">Календарь и брони</button>
+        <button type="button" class="tab" role="tab" aria-selected="false" data-tab="analytics">Аналитика</button>
+        <button type="button" class="tab" role="tab" aria-selected="false" data-tab="chat">Чаты с гостями</button>
+        <button type="button" class="tab" role="tab" aria-selected="false" data-tab="obj">Объекты и брони</button>
+        <button type="button" class="tab" role="tab" aria-selected="false" data-tab="docs">Документы</button>
+        <button type="button" class="tab" role="tab" aria-selected="false" data-tab="settings">Настройки</button>
+    </nav>
+
+    <section id="panel-cal" class="tab-panel active" role="tabpanel">
+        <div class="grid" style="grid-template-columns: 1fr;">
+            <div class="card">
+                <h2>Бронирования</h2>
+                <p class="muted">Все брони по вашим объектам. Импорт из ICS обновляется по расписанию или вручную на вкладке «Объекты».</p>
+                <div class="row">
+                    <button class="btn btn-ghost" type="button" id="btnRefreshBookings">Обновить список</button>
+                </div>
+                <div id="bookingStatus" class="status"></div>
+                <div class="cal-toolbar" aria-label="Фильтры и навигация календаря">
+                    <div class="group">
+                        <button class="btn btn-ghost" type="button" id="calPrev">←</button>
+                        <strong id="calTitle">Календарь</strong>
+                        <button class="btn btn-ghost" type="button" id="calNext">→</button>
+                        <button class="btn btn-ghost" type="button" id="calToday">Сегодня</button>
+                    </div>
+                    <div class="group">
+                        <select id="calProperty" data-property-select></select>
+                        <select id="calSource">
+                            <option value="">Все источники</option>
+                            <option value="SITE">SITE</option>
+                            <option value="AVITO">AVITO</option>
+	                            <option value="SUTOCHNO">SUTOCHNO</option>
+	                            <option value="CIAN">CIAN</option>
+	                            <option value="YANDEX_TRAVEL">YANDEX_TRAVEL</option>
+	                            <option value="OSTROVOK">OSTROVOK</option>
+                            <option value="HOSTAWAY">HOSTAWAY</option>
+                            <option value="CHANNEX">CHANNEX</option>
+                            <option value="GUESTY">GUESTY</option>
+                            <option value="BOOKING">BOOKING</option>
+                            <option value="AIRBNB">AIRBNB</option>
+                            <option value="ICAL">ICAL</option>
+                            <option value="OTHER">OTHER</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="cal-month" id="bookingCalendar" aria-label="Календарь бронирований">
+                    <div class="cal-weekdays">
+                        <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+                    </div>
+                    <div class="cal-grid" id="calGrid"></div>
+                </div>
+                <p class="cal-legend"><strong>Два блока в один день</strong> — обычно <strong>две разные брони</strong> (пересечение по датам: например выезд одного и заезд другого, или два импорта ICS). Подпись <strong style="color:#059669">→ заезд</strong> — первый день брони, <strong style="color:#dc2626">← выезд</strong> — последний. <strong>Цвет полоски слева</strong> различает брони. Имя в ячейке берётся из профиля гостя в системе; импорт ICS часто даёт только даты — тогда видно «без профиля», пока не создадите гостя и не привяжете бронь.</p>
+                <div style="overflow-x:auto;">
+                    <table class="table-bookings" id="bookingsTable">
+                        <thead><tr><th>ID</th><th>Объект</th><th>Гость</th><th>Паспорт</th><th>Заезд</th><th>Выезд</th><th>Источник</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="panel-analytics" class="tab-panel" role="tabpanel">
+        <div class="grid" style="grid-template-columns: 1fr;">
+            <div class="card">
+                <h2>Аналитика</h2>
+                <p class="muted">Сводка по объектам, броням, сообщениям, документам и подключенным каналам.</p>
+                <div class="row">
+                    <button class="btn btn-ghost" type="button" id="btnRefreshAnalytics">Обновить аналитику</button>
+                </div>
+                <div id="analyticsStatus" class="status"></div>
+                <div id="analyticsCards" class="analytics-cards"></div>
+                <div class="analytics-tables">
+                    <div>
+                        <h3>Брони по источникам</h3>
+                        <table class="table-bookings analytics-table" id="analyticsBookingsBySource">
+                            <thead><tr><th>Источник</th><th>Количество</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h3>Сообщения по платформам</h3>
+                        <table class="table-bookings analytics-table" id="analyticsMessagesByPlatform">
+                            <thead><tr><th>Платформа</th><th>Количество</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h3>Документы по статусам</h3>
+                        <table class="table-bookings analytics-table" id="analyticsDocumentsByStatus">
+                            <thead><tr><th>Статус</th><th>Количество</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h3>Подключенные каналы</h3>
+                        <table class="table-bookings analytics-table" id="analyticsIntegrationsByPlatform">
+                            <thead><tr><th>Платформа</th><th>Каналы</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="panel-chat" class="tab-panel" role="tabpanel">
+        <div class="grid" style="grid-template-columns: 1fr;">
+            <div class="card">
+                <h2>Мессенджер</h2>
+                <p class="muted">Диалоги с гостями через подключенные площадки.</p>
+                <div class="row" style="flex-wrap:wrap;">
+                    <select id="chatPlatform" style="max-width:180px;">
+	                        <option value="AVITO">Avito</option>
+	                        <option value="CIAN">Циан</option>
+	                        <option value="SUTOCHNO">Суточно.ру demo</option>
+	                        <option value="YANDEX_TRAVEL">Яндекс Путешествия demo</option>
+	                        <option value="OSTROVOK">Островок demo</option>
+                            <option value="HOSTAWAY">Hostaway live</option>
+                            <option value="CHANNEX">Channex live</option>
+                            <option value="BOOKING">Booking.com live</option>
+                            <option value="GUESTY">Guesty live</option>
+                    </select>
+                    <button class="btn btn-primary" type="button" id="loadAvitoChats">Обновить диалоги</button>
+                    <button class="btn btn-ghost" type="button" id="syncMessages">Импорт новых входящих</button>
+                </div>
+                <div id="messageStatus" class="status"></div>
+                <div class="messenger">
+                    <aside class="messenger-sidebar">
+                        <div class="messenger-sidebar-header">
+                            <span class="muted" style="font-size:0.85rem;" id="chatPlatformTitle">Диалоги Avito</span>
+                            <div class="row-tight" style="margin-top:8px;">
+                                <input type="search" id="chatSearch" placeholder="Поиск по имени, объявлению…" autocomplete="off">
+                                <select id="chatSort" style="padding:8px;border-radius:10px;border:1px solid var(--border);font:inherit;">
+                                    <option value="recent">Сначала новые</option>
+                                    <option value="name">По имени (А–Я)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <ul id="avitoChatsList" class="messenger-chats"></ul>
+                    </aside>
+                    <div class="messenger-main">
+                        <div id="avitoThreadHeader" class="messenger-thread-header">Выберите диалог слева</div>
+                        <div id="avitoThread" class="messenger-thread"></div>
+                        <div class="messenger-composer">
+                            <form id="replyForm" class="landlord-form composer-form">
+                                <input type="hidden" name="propertyId" id="messengerPropertyId" value="">
+                                <input type="hidden" name="externalConversationId" id="messengerChatId" value="">
+                                <input type="hidden" name="platform" id="replyPlatform" value="AVITO">
+                                <input type="hidden" name="guestId" id="replyGuestId" value="">
+                                <label class="composer-label" for="replyDocTemplate">Документ для отправки</label>
+                                <select name="documentTemplateId" id="replyDocTemplate" class="composer-select-full">
+                                    <option value="">— Без документа —</option>
+                                </select>
+                                <label class="composer-label" for="replyContent" id="replyContentLabel">Сообщение гостю</label>
+                                <textarea name="content" id="replyContent" class="composer-textarea" placeholder="Текст ответа…" required rows="4"></textarea>
+                                <div class="composer-actions">
+                                    <button class="btn btn-ghost" type="button" id="btnOpenTemplates" title="Шаблоны ответов">📋</button>
+                                    <button class="btn btn-primary" type="submit">Отправить</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="panel-obj" class="tab-panel" role="tabpanel">
+        <div class="grid">
+            <div class="card">
+                <h2>Объекты</h2>
+                <p class="muted">Для каждого объекта доступен экспорт ICS — вставьте ссылку на площадках один раз.</p>
+                <form id="propertyForm" class="landlord-form">
+                    <input name="name" placeholder="Название" required>
+                    <input name="address" placeholder="Адрес" required>
+                    <button class="btn btn-primary" type="submit">Добавить объект</button>
+                </form>
+                <div id="propertyStatus" class="status"></div>
+                <ul id="propertiesList" class="data-list"></ul>
+            </div>
+            <div class="card">
+                <h2>Импорт ICS с площадок</h2>
+                <form id="calendarConfigForm" class="landlord-form">
+                    <select name="propertyId" data-property-select required></select>
+                    <select name="source">
+                        <option value="AVITO">AVITO</option>
+	                        <option value="SUTOCHNO">SUTOCHNO</option>
+	                        <option value="CIAN">CIAN</option>
+	                        <option value="YANDEX_TRAVEL">YANDEX_TRAVEL</option>
+	                        <option value="OSTROVOK">OSTROVOK</option>
+                        <option value="HOSTAWAY">HOSTAWAY</option>
+                        <option value="CHANNEX">CHANNEX</option>
+                        <option value="GUESTY">GUESTY</option>
+                        <option value="BOOKING">BOOKING</option>
+                        <option value="AIRBNB">AIRBNB</option>
+                        <option value="OTHER">OTHER</option>
+                    </select>
+                    <input name="icaUrl" placeholder="URL ICS" required>
+                    <button class="btn btn-primary" type="submit">Сохранить</button>
+                </form>
+                <form id="icsSyncForm" class="landlord-form">
+                    <select name="propertyId" data-property-select required></select>
+                    <button class="btn btn-ghost" type="submit">Синхронизировать сейчас</button>
+                </form>
+                <div id="calendarStatus" class="status"></div>
+                <ul id="calendarConfigsList" class="data-list"></ul>
+            </div>
+            <div class="card">
+                <h2>Гости и ручная бронь</h2>
+                <form id="guestForm" class="landlord-form">
+                    <input name="email" type="email" placeholder="Email гостя" required>
+                    <input name="password" type="password" placeholder="Пароль" required>
+                    <input name="name" placeholder="Имя" required>
+                    <input name="surname" placeholder="Фамилия" required>
+                    <button class="btn btn-ghost" type="submit">Создать гостя</button>
+                </form>
+                <div id="guestStatus" class="status"></div>
+                <form id="bookingForm" class="landlord-form">
+                    <select name="propertyId" data-property-select required></select>
+                    <input name="guestId" type="number" placeholder="ID гостя" required>
+                    <input name="startDate" type="date" required>
+                    <input name="endDate" type="date" required>
+                    <select name="source">
+                        <option value="SITE">SITE</option>
+                        <option value="AVITO">AVITO</option>
+	                        <option value="SUTOCHNO">SUTOCHNO</option>
+	                        <option value="CIAN">CIAN</option>
+	                        <option value="YANDEX_TRAVEL">YANDEX_TRAVEL</option>
+	                        <option value="OSTROVOK">OSTROVOK</option>
+                        <option value="HOSTAWAY">HOSTAWAY</option>
+                        <option value="CHANNEX">CHANNEX</option>
+                        <option value="GUESTY">GUESTY</option>
+                        <option value="BOOKING">BOOKING</option>
+                        <option value="AIRBNB">AIRBNB</option>
+                        <option value="ICAL">ICAL</option>
+                        <option value="OTHER">OTHER</option>
+                    </select>
+                    <button class="btn btn-primary" type="submit">Создать бронь</button>
+                </form>
+                <div id="bookingFormStatus" class="status"></div>
+            </div>
+        </div>
+    </section>
+
+    <section id="panel-docs" class="tab-panel" role="tabpanel">
+        <div class="grid" style="grid-template-columns: 1fr;">
+            <div class="card">
+                <h2>Документы</h2>
+                <nav class="tabs" role="tablist" style="margin-bottom:12px;">
+                    <button type="button" class="tab active" role="tab" aria-selected="true" data-doc-tab="approve">На подтверждение</button>
+                    <button type="button" class="tab" role="tab" aria-selected="false" data-doc-tab="templates">Шаблоны</button>
+                    <button type="button" class="tab" role="tab" aria-selected="false" data-doc-tab="pdf">PDF</button>
+                </nav>
+                <div id="docStatus" class="status"></div>
+
+                <!-- Approve tab -->
+                <div id="docTabApprove" class="doc-tab-panel">
+                    <p class="muted">Документы, ожидающие проверки паспортных данных гостя.</p>
+                    <div style="overflow-x:auto;">
+                        <table class="table-bookings" id="docsApproveTable">
+                            <thead><tr><th>Гость</th><th>Документ</th><th>Тип</th><th>Заполнен</th><th></th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Templates tab -->
+                <div id="docTabTemplates" class="doc-tab-panel" style="display:none;">
+                    <p class="muted">Шаблоны документов. Стандартные доступны всем, свои можно загрузить.</p>
+                    <div id="docTemplatesList" class="template-list" style="margin-bottom:12px;"></div>
+                    <details>
+                        <summary style="cursor:pointer;font-weight:600;font-size:0.9rem;margin-bottom:8px;">Загрузить свой .docx</summary>
+                        <div class="landlord-form" style="margin-top:8px;">
+                            <input id="dtTitle" placeholder="Название шаблона" maxlength="200">
+                            <select id="dtType">
+                                <option value="CONTRACT">Договор аренды</option>
+                                <option value="ACT">Акт приёма-передачи</option>
+                                <option value="ADDITIONAL_AGREEMENT">Доп. соглашение</option>
+                            </select>
+                            <input id="dtFile" type="file" accept=".docx">
+                            <button class="btn btn-primary" type="button" id="btnUploadDocTemplate">Загрузить</button>
+                        </div>
+                    </details>
+                    <div id="docTemplateStatus" class="status"></div>
+                </div>
+
+                <!-- PDF tab -->
+                <div id="docTabPdf" class="doc-tab-panel" style="display:none;">
+                    <p class="muted">Готовые PDF-документы.</p>
+                    <div style="overflow-x:auto;">
+                        <table class="table-bookings" id="docsPdfTable">
+                            <thead><tr><th>Название</th><th>Гость</th><th>Тип</th><th>Дата</th><th></th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="panel-settings" class="tab-panel" role="tabpanel">
+        <div class="grid" style="grid-template-columns: 1fr;">
+            <div class="card settings-card">
+                <h2>Настройки</h2>
+                <p class="muted">Профиль, подключение площадок, анкета гостя и безопасный демо-сценарий собраны в одном месте.</p>
+                <nav class="settings-tabs" role="tablist" aria-label="Разделы настроек">
+                    <button type="button" class="settings-tab active" role="tab" aria-selected="true" data-settings-tab="general">Общие</button>
+                    <button type="button" class="settings-tab" role="tab" aria-selected="false" data-settings-tab="platforms">Платформы</button>
+                    <button type="button" class="settings-tab" role="tab" aria-selected="false" data-settings-tab="guest">Гость и документы</button>
+                    <button type="button" class="settings-tab" role="tab" aria-selected="false" data-settings-tab="security">Безопасность</button>
+                </nav>
+                <div id="settingsContent" class="settings-content">
+                    <section class="settings-panel active" data-settings-panel="general">
+                        <div class="settings-section">
+                            <div class="settings-section-head">
+                                <div>
+                                    <h3>Профиль арендодателя</h3>
+                                    <p class="muted">Эти данные подставляются в договоры и гостевые документы.</p>
+                                </div>
+                            </div>
+                            <div id="settingsProfileContent" class="settings-loading">Загрузка профиля...</div>
+                        </div>
+                        <div class="settings-section">
+                            <div class="settings-section-head">
+                                <div>
+                                    <h3>Демо без реальных сообщений</h3>
+                                    <p class="muted">Проверка анкеты, документа и ответа без отправки настоящим гостям на внешних площадках.</p>
+                                </div>
+                            </div>
+                            <div id="settingsDemoContent" class="settings-loading">Загрузка демо-сценария...</div>
+                        </div>
+                    </section>
+
+                    <section class="settings-panel" data-settings-panel="platforms">
+                        <div class="settings-section">
+                            <div class="settings-section-head">
+                                <div>
+                                    <h3>Каналы сообщений</h3>
+                                    <p class="muted">Подключите площадку к объекту, чтобы читать диалоги и отправлять ответы через общий чат.</p>
+                                </div>
+                            </div>
+                            <div class="platform-hints">
+                                <div class="platform-hint">
+                                    <strong>Avito</strong>
+                                    <span>OPEN_API использует <code>client_id</code> и <code>client_secret</code>; <code>user_id</code> определяется автоматически.</span>
+                                </div>
+                                <div class="platform-hint">
+                                    <strong>Циан</strong>
+                                    <span>OPEN_API использует <code>ACCESS KEY</code>; при необходимости можно указать <code>employeeId</code>.</span>
+                                </div>
+                                <div class="platform-hint">
+                                    <strong>Партнерские API</strong>
+                                    <span>Hostaway, Channex, Booking.com и Guesty работают через API token, если он выдан пользователю.</span>
+                                </div>
+                                <div class="platform-hint">
+                                    <strong>Fallback-каналы</strong>
+                                    <span>Для Яндекс Путешествий, Островка и Суточно.ру доступны mock и резервные режимы для демонстрации.</span>
+                                </div>
+                            </div>
+                            <form id="integrationForm" class="landlord-form settings-form">
+                                <select name="propertyId" data-property-select required></select>
+                                <select name="platform" id="integrationPlatform">
+                                    <option value="AVITO">AVITO</option>
+                                    <option value="SUTOCHNO">SUTOCHNO</option>
+                                    <option value="CIAN">CIAN</option>
+                                    <option value="YANDEX_TRAVEL">YANDEX_TRAVEL</option>
+                                    <option value="OSTROVOK">OSTROVOK</option>
+                                    <option value="HOSTAWAY">HOSTAWAY</option>
+                                    <option value="CHANNEX">CHANNEX</option>
+                                    <option value="GUESTY">GUESTY</option>
+                                    <option value="BOOKING">BOOKING</option>
+                                    <option value="AIRBNB">AIRBNB</option>
+                                    <option value="OTHER">OTHER</option>
+                                </select>
+                                <select name="mode" id="integrationMode">
+                                    <option value="OPEN_API">OPEN_API</option>
+                                    <option value="EMAIL_RELAY">EMAIL_RELAY</option>
+                                </select>
+                                <input name="clientId" id="integrationClientId" placeholder="Avito: client_id / Ostrovok: key id">
+                                <input name="clientSecret" id="integrationClientSecret" type="password" placeholder="Avito: client_secret / Ostrovok: api key">
+                                <input name="platformUserId" id="integrationPlatformUserId" placeholder="Циан: employeeId / Booking: affiliate id / account id">
+                                <input name="authToken" id="integrationAuthToken" type="password" placeholder="ACCESS KEY / API token / OAuth token / mock">
+                                <input name="inboundEndpoint" placeholder="Avito: item_id / custom API base / demo или mock">
+                                <input name="outboundEndpoint" placeholder="API base URL или URL проверки (необязательно)">
+                                <button class="btn btn-primary" type="submit">Сохранить канал</button>
+                            </form>
+                            <div id="integrationStatus" class="status"></div>
+                            <ul id="integrationsList" class="data-list"></ul>
+                        </div>
+                    </section>
+
+                    <section class="settings-panel" data-settings-panel="guest">
+                        <div class="settings-section">
+                            <div class="settings-section-head">
+                                <div>
+                                    <h3>Карта гостя</h3>
+                                    <p class="muted">Настройте поля, которые гость заполняет по защищенной ссылке перед заселением.</p>
+                                </div>
+                            </div>
+                            <div id="settingsGuestContent" class="settings-loading">Загрузка карты гостя...</div>
+                        </div>
+                    </section>
+
+                    <section class="settings-panel" data-settings-panel="security">
+                        <div class="settings-section">
+                            <div class="settings-section-head">
+                                <div>
+                                    <h3>Хранение и удаление данных</h3>
+                                    <p class="muted">Настройте срок хранения паспортных данных и PDF после завершения проживания.</p>
+                                </div>
+                            </div>
+                            <div id="settingsRetentionContent" class="settings-loading">Загрузка политики хранения...</div>
+                        </div>
+                        <div class="settings-section">
+                            <div class="settings-section-head">
+                                <div>
+                                    <h3>Журнал действий</h3>
+                                    <p class="muted">Последние события по бронированиям, документам, гостевым ссылкам и паспортным данным.</p>
+                                </div>
+                                <button class="btn btn-ghost" type="button" id="btnRefreshAudit">Обновить</button>
+                            </div>
+                            <div id="settingsAuditContent" class="settings-loading">Загрузка журнала...</div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- Templates popup -->
+<div id="templatesPopup" class="modal-overlay" style="display:none;">
+    <div class="modal" style="max-width:520px;">
+        <div class="modal-header">
+            <h3>Шаблоны ответов</h3>
+            <button type="button" class="btn btn-ghost modal-close-btn">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="help-callout" style="margin-top:0;">
+                <p style="margin:0;font-size:0.85rem;">Для анкеты используйте <code>{guestFormLink}</code>. Для договора используйте <code>{documentLink}</code> или выберите документ ниже — ссылка добавится к ответу автоматически.</p>
+            </div>
+            <ul id="templatesPopupList" class="template-list" style="margin-top:12px;"></ul>
+            <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+            <details>
+                <summary style="cursor:pointer;font-weight:600;font-size:0.9rem;">Управление шаблонами</summary>
+                <div class="template-editor" style="margin-top:12px;">
+                    <input id="tplTitle" placeholder="Название шаблона (напр. Приветствие)" maxlength="200">
+                    <select id="tplPlatform">
+                        <option value="">Любая площадка</option>
+                        <option value="AVITO">AVITO</option>
+	                        <option value="SUTOCHNO">SUTOCHNO</option>
+	                        <option value="CIAN">CIAN</option>
+	                        <option value="YANDEX_TRAVEL">YANDEX_TRAVEL</option>
+	                        <option value="OSTROVOK">OSTROVOK</option>
+	                        <option value="HOSTAWAY">HOSTAWAY</option>
+	                        <option value="CHANNEX">CHANNEX</option>
+	                        <option value="BOOKING">BOOKING</option>
+                        <option value="GUESTY">GUESTY</option>
+                        <option value="OTHER">OTHER</option>
+                    </select>
+                    <select id="tplDocumentTemplate" class="composer-select-full">
+                        <option value="">— Без документа —</option>
+                    </select>
+                    <textarea id="tplBody" rows="5" placeholder="Текст шаблона…"></textarea>
+                    <button class="btn btn-primary" type="button" id="btnSaveTemplate">Сохранить шаблон</button>
+                </div>
+            </details>
+        </div>
+    </div>
+</div>
+
+<!-- Document template editor -->
+<div id="docTemplateEditorModal" class="modal-overlay" style="display:none;">
+    <div class="modal" style="max-width:760px;">
+        <div class="modal-header">
+            <h3>Редактирование шаблона документа</h3>
+            <button type="button" class="btn btn-ghost modal-close-btn">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="docTplEditId">
+            <div class="template-editor">
+                <input id="docTplEditTitle" placeholder="Название шаблона">
+                <select id="docTplEditType">
+                    <option value="CONTRACT">Договор аренды</option>
+                    <option value="ACT">Акт приёма-передачи</option>
+                    <option value="ADDITIONAL_AGREEMENT">Доп. соглашение</option>
+                </select>
+                <label class="composer-label" for="docTplEditBody">HTML документа</label>
+                <textarea id="docTplEditBody" rows="12" placeholder="HTML шаблона с Thymeleaf-полями"></textarea>
+                <label class="composer-label" for="docTplEditConfig">Настройки редактируемых полей JSON</label>
+                <textarea id="docTplEditConfig" rows="4" placeholder='{"advancePayment":{"enabled":true,"defaultValue":5000},"additionalTerms":{"enabled":true,"defaultValue":""}}'></textarea>
+                <div class="row">
+                    <button class="btn btn-primary" type="button" id="btnSaveDocTemplateEdit">Сохранить шаблон</button>
+                </div>
+                <div id="docTplEditStatus" class="status"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Passport detail modal -->
+<div id="passportModal" class="modal-overlay" style="display:none;">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Паспортные данные гостя</h3>
+            <button type="button" class="btn btn-ghost modal-close-btn">✕</button>
+        </div>
+        <div class="modal-body" id="passportModalBody">
+            <div class="passport-detail-grid">
+                <div><strong>Серия:</strong> <span id="pdSeries"></span></div>
+                <div><strong>Номер:</strong> <span id="pdNumber"></span></div>
+                <div><strong>Кем выдан:</strong> <span id="pdIssuedBy"></span></div>
+                <div><strong>Дата выдачи:</strong> <span id="pdIssueDate"></span></div>
+                <div><strong>Дата рождения:</strong> <span id="pdBirthDate"></span></div>
+                <div><strong>Телефон:</strong> <span id="pdPhone"></span></div>
+            </div>
+            <div class="passport-gallery" id="pdGallery"></div>
+            <div class="verify-actions" id="pdVerifyActions">
+                <button class="btn btn-primary" type="button" id="btnVerifyPassport">Подтвердить</button>
+                <button class="btn btn-ghost" type="button" id="btnRejectPassport">Отклонить</button>
+            </div>
+            <div id="pdVerifyStatus" class="status"></div>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/js/landlord-api.js}"></script>
+<script>
+    document.querySelectorAll("[data-tab]").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const id = btn.dataset.tab;
+            document.querySelectorAll("[data-tab]").forEach(b => {
+                b.classList.toggle("active", b === btn);
+                b.setAttribute("aria-selected", b === btn ? "true" : "false");
+            });
+            document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+            document.getElementById("panel-" + id).classList.add("active");
+        });
+    });
+
+    document.querySelectorAll("[data-settings-tab]").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const id = btn.dataset.settingsTab;
+            document.querySelectorAll("[data-settings-tab]").forEach(b => {
+                b.classList.toggle("active", b === btn);
+                b.setAttribute("aria-selected", b === btn ? "true" : "false");
+            });
+            document.querySelectorAll("[data-settings-panel]").forEach(panel => {
+                panel.classList.toggle("active", panel.dataset.settingsPanel === id);
+            });
+        });
+    });
+
+    async function refreshProperties() {
+        const properties = await landlordApi("/api/landlord/properties", "GET");
+        fillPropertySelects(properties);
+        document.getElementById("propertiesList").innerHTML = properties
+            .map(p => {
+                const ics = `${window.location.origin}/api/calendar-export/${p.id}.ics`;
+                return `<li><strong>#${p.id}</strong> ${escapeHtml(p.name)} — экспорт: <a href="${ics}" target="_blank" rel="noopener">${ics}</a></li>`;
+            })
+            .join("") || "<li>Нет объектов</li>";
+        return properties;
+    }
+
+    function renderBookings(bookings) {
+        const tb = document.querySelector("#bookingsTable tbody");
+        if (!bookings.length) {
+            tb.innerHTML = "<tr><td colspan=\"7\">Нет бронирований</td></tr>";
+            return;
+        }
+        tb.innerHTML = bookings.map(b => {
+            const g = b.guest;
+            const gname = g ? ([g.name, g.surname].filter(Boolean).join(" ").trim() || ("#" + g.id)) : "—";
+            let pBadge = `<span class="muted" style="font-size:0.78rem;">—</span>`;
+            if (g && g.passportFilled) {
+                pBadge = `<span style="cursor:pointer;color:var(--success);font-weight:700;" title="Нажмите для просмотра" data-guest-id="${g.id}" class="guest-passport-badge">✓</span>`;
+            }
+            return `<tr><td>${b.id}</td><td>#${b.property?.id ?? "?"}</td><td>${escapeHtml(gname)}</td><td>${pBadge}</td><td>${b.startDate}</td><td>${b.endDate}</td><td>${b.source}</td></tr>`;
+        }).join("");
+    }
+
+    function renderAnalyticsCards(summary) {
+        const cards = [
+            ["Объекты", summary.propertyCount],
+            ["Брони", summary.bookingCount],
+            ["Будущие брони", summary.upcomingBookingCount],
+            ["Занятых дней за 30 дней", summary.occupiedDaysNext30],
+            ["Сообщения", summary.messageCount],
+            ["Входящие / исходящие", `${summary.inboundMessageCount} / ${summary.outboundMessageCount}`],
+            ["Документы", summary.documentCount],
+            ["На проверке", summary.awaitingDocumentCount],
+            ["Готовые PDF", summary.finalizedDocumentCount],
+            ["Каналы", summary.integrationCount],
+            ["Avito OPEN_API", summary.avitoOpenApiConnected ? "подключен" : "не подключен"]
+        ];
+        document.getElementById("analyticsCards").innerHTML = cards.map(([label, value]) =>
+            `<div class="analytics-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></div>`
+        ).join("");
+    }
+
+    function renderAnalyticsMap(tableId, data, emptyText) {
+        const tbody = document.querySelector(`#${tableId} tbody`);
+        const entries = Object.entries(data || {}).sort((a, b) => String(a[0]).localeCompare(String(b[0]), "ru"));
+        if (!entries.length) {
+            tbody.innerHTML = `<tr><td colspan="2">${escapeHtml(emptyText)}</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = entries
+            .map(([key, value]) => `<tr><td>${escapeHtml(key)}</td><td>${value}</td></tr>`)
+            .join("");
+    }
+
+    function formatAuditAction(action) {
+        const labels = {
+            BOOKING_CREATED: "Создана бронь",
+            GUEST_CREATED: "Создан гость",
+            GUEST_DATA_LINK_ISSUED: "Выпущена гостевая ссылка",
+            GUEST_DATA_SUBMITTED: "Гость отправил данные",
+            GUEST_PHOTOS_UPLOADED: "Гость загрузил фото",
+            PASSPORT_VIEWED: "Просмотр паспорта",
+            PASSPORT_VERIFIED: "Паспорт подтвержден",
+            PASSPORT_REJECTED: "Паспорт отклонен",
+            DOCUMENT_CREATED: "Создан документ",
+            DOCUMENT_APPROVED: "Документ подтвержден",
+            DOCUMENT_REJECTED: "Документ отклонен",
+            DOCUMENT_DELETED: "Документ удален",
+            DOCUMENT_TEMPLATE_CREATED: "Создан шаблон",
+            DOCUMENT_TEMPLATE_UPDATED: "Обновлен шаблон",
+            DOCUMENT_TEMPLATE_DELETED: "Удален шаблон",
+            RETENTION_POLICY_UPDATED: "Политика хранения",
+            RETENTION_PURGE_RUN: "Очистка данных"
+        };
+        return labels[action] || action || "Событие";
+    }
+
+    function formatDateTime(value) {
+        if (!value) return "—";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
+    }
+
+    function renderAuditEvents(events) {
+        const el = document.getElementById("settingsAuditContent");
+        if (!el) return;
+        if (!events || !events.length) {
+            el.innerHTML = `<p class="muted">Журнал пока пуст. События появятся после создания брони, отправки ссылки, проверки данных или очистки.</p>`;
+            return;
+        }
+        el.innerHTML = `
+            <div style="overflow-x:auto;">
+                <table class="table-bookings audit-table">
+                    <thead><tr><th>Время</th><th>Действие</th><th>Пользователь</th><th>Объект</th><th>Описание</th></tr></thead>
+                    <tbody>
+                        ${events.map(e => `
+                            <tr>
+                                <td>${escapeHtml(formatDateTime(e.createdAt))}</td>
+                                <td>${escapeHtml(formatAuditAction(e.action))}</td>
+                                <td>${escapeHtml(e.actorEmail || "система")}</td>
+                                <td>${escapeHtml((e.targetType || "—") + (e.targetId ? " #" + e.targetId : ""))}</td>
+                                <td>${escapeHtml(e.summary || "")}</td>
+                            </tr>
+                        `).join("")}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    function renderRetentionPolicy(policy) {
+        const el = document.getElementById("settingsRetentionContent");
+        if (!el) return;
+        el.innerHTML = `
+            <div class="help-callout" style="margin-top:0;">
+                <p style="margin:0;">Очистка удаляет паспортные поля и фото гостей по бронированиям, завершенным раньше выбранного срока. PDF-файлы удаляются отдельно, метаданные документа остаются в системе.</p>
+            </div>
+            <div class="landlord-form settings-form">
+                <label>
+                    Срок хранения паспортных данных после выезда, дней
+                    <input id="retPassportDays" type="number" min="1" max="3650" value="${policy.passportDataRetentionDays ?? 180}">
+                </label>
+                <label>
+                    Срок хранения сформированных PDF, дней
+                    <input id="retPdfDays" type="number" min="1" max="3650" value="${policy.generatedPdfRetentionDays ?? 365}">
+                </label>
+                <label class="settings-toggle">
+                    <input type="checkbox" id="retDeletePhotos" ${policy.deletePassportPhotos ? "checked" : ""}>
+                    <span>
+                        <strong>Удалять фото документов</strong>
+                        <small>При очистке удаляются файлы из файлового хранилища.</small>
+                    </span>
+                </label>
+                <label class="settings-toggle">
+                    <input type="checkbox" id="retAutoDelete" ${policy.autoDeleteEnabled ? "checked" : ""}>
+                    <span>
+                        <strong>Автоматическая очистка включена</strong>
+                        <small>Флаг готов для промышленного расписания; в демо очистка запускается вручную.</small>
+                    </span>
+                </label>
+                <div class="settings-actions">
+                    <button class="btn btn-primary" type="button" id="btnSaveRetention">Сохранить политику</button>
+                    <button class="btn btn-ghost" type="button" id="btnRunRetentionPurge">Очистить устаревшие данные</button>
+                </div>
+            </div>
+            <div id="retentionStatus" class="status"></div>
+        `;
+
+        document.getElementById("btnSaveRetention").addEventListener("click", async () => {
+            try {
+                await landlordApi("/api/landlord/settings/retention", "PUT", {
+                    passportDataRetentionDays: Number(document.getElementById("retPassportDays").value),
+                    generatedPdfRetentionDays: Number(document.getElementById("retPdfDays").value),
+                    deletePassportPhotos: document.getElementById("retDeletePhotos").checked,
+                    autoDeleteEnabled: document.getElementById("retAutoDelete").checked
+                });
+                document.getElementById("retentionStatus").textContent = "Политика хранения сохранена";
+                document.getElementById("retentionStatus").className = "status ok";
+                await refreshAudit();
+            } catch (err) {
+                document.getElementById("retentionStatus").textContent = err.message;
+                document.getElementById("retentionStatus").className = "status err";
+            }
+        });
+
+        document.getElementById("btnRunRetentionPurge").addEventListener("click", async () => {
+            try {
+                const result = await landlordApi("/api/landlord/settings/retention/purge", "POST");
+                document.getElementById("retentionStatus").textContent =
+                    `Очищено гостей: ${result.guestsCleaned}, фото: ${result.passportPhotosDeleted}, документов: ${result.documentsCleaned}, PDF: ${result.pdfFilesDeleted}`;
+                document.getElementById("retentionStatus").className = "status ok";
+                await refreshAudit();
+            } catch (err) {
+                document.getElementById("retentionStatus").textContent = err.message;
+                document.getElementById("retentionStatus").className = "status err";
+            }
+        });
+    }
+
+    async function refreshAudit() {
+        const events = await landlordApi("/api/landlord/audit", "GET");
+        renderAuditEvents(events);
+    }
+
+    async function refreshAnalytics() {
+        setLandlordStatus("analyticsStatus", "Загрузка аналитики...");
+        const summary = await landlordApi("/api/landlord/analytics/summary", "GET");
+        renderAnalyticsCards(summary);
+        renderAnalyticsMap("analyticsBookingsBySource", summary.bookingsBySource, "Нет бронирований");
+        renderAnalyticsMap("analyticsMessagesByPlatform", summary.messagesByPlatform, "Нет сообщений");
+        renderAnalyticsMap("analyticsDocumentsByStatus", summary.documentsByStatus, "Нет документов");
+        renderAnalyticsMap("analyticsIntegrationsByPlatform", summary.integrationsByPlatform, "Нет подключенных каналов");
+        setLandlordStatus("analyticsStatus", "Аналитика обновлена");
+    }
+
+    function guestLabelFromBooking(b) {
+        const g = b.guest;
+        if (!g) {
+            return "Бронь #" + (b.id ?? "?") + " · без профиля (ICS/импорт)";
+        }
+        const n = [g.name, g.surname].filter(Boolean).join(" ").trim();
+        return n || ("Гость #" + (g.id ?? "?"));
+    }
+
+    function bookingHue(id) {
+        const n = Number(id) || 0;
+        return (n * 47) % 360;
+    }
+
+    function rebuildRenderGuests(bookings) {
+        const seen = new Set();
+        const rows = [];
+        for (const b of bookings) {
+            const gid = b.guest?.id;
+            if (!gid || seen.has(gid)) continue;
+            seen.add(gid);
+            rows.push({ id: gid, label: guestLabelFromBooking(b) });
+        }
+        rows.sort((a, b) => a.label.localeCompare(b.label, "ru"));
+        const optsRender = "<option value=\"\">— Выберите гостя —</option>" +
+            rows.map(r => `<option value="${r.id}">${escapeHtml(r.label)} (id ${r.id})</option>`).join("");
+        const sel = document.getElementById("renderGuestId");
+        if (!sel) return;
+        const cur = sel.value;
+        sel.innerHTML = optsRender;
+        if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+    }
+
+
+
+    async function refreshBookings() {
+        const bookings = await landlordApi("/api/landlord/bookings", "GET");
+        const sorted = [...bookings].sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)));
+        renderBookings(sorted);
+        window.__bookings = sorted;
+        rebuildRenderGuests(sorted);
+        renderCalendar();
+    }
+
+    function parseDateLocal(iso) {
+        // iso: YYYY-MM-DD
+        const [y, m, d] = String(iso).split("-").map(Number);
+        return new Date(y, (m || 1) - 1, d || 1);
+    }
+
+    function toIsoDate(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+    }
+
+    function startOfMonth(d) {
+        return new Date(d.getFullYear(), d.getMonth(), 1);
+    }
+
+    function addDays(d, n) {
+        const x = new Date(d);
+        x.setDate(x.getDate() + n);
+        return x;
+    }
+
+    function mondayIndex(jsDay) {
+        // JS: 0=Sun..6=Sat -> Monday-based: 0=Mon..6=Sun
+        return (jsDay + 6) % 7;
+    }
+
+    function sourceClass(src) {
+        const s = String(src || "").toLowerCase();
+        if (s === "avito") return "avito";
+        if (s === "sutochno") return "sutochno";
+        if (s === "yandex_travel") return "yandex";
+        if (s === "ostrovok") return "ostrovok";
+        if (s === "booking") return "booking";
+        if (s === "ical") return "ical";
+        if (s === "site") return "site";
+        return "other";
+    }
+
+    let calCursor = new Date();
+
+    function renderCalendar() {
+        const bookings = Array.isArray(window.__bookings) ? window.__bookings : [];
+        const grid = document.getElementById("calGrid");
+        const title = document.getElementById("calTitle");
+        const propSel = document.getElementById("calProperty");
+        const srcSel = document.getElementById("calSource");
+        if (!grid || !title) return;
+
+        const monthStart = startOfMonth(calCursor);
+        const y = monthStart.getFullYear();
+        const m = monthStart.getMonth();
+        title.textContent = new Date(y, m, 1).toLocaleString("ru-RU", { month: "long", year: "numeric" });
+
+        // grid starts on Monday of the week containing the 1st
+        const firstCell = addDays(monthStart, -mondayIndex(monthStart.getDay()));
+        const cells = [];
+        for (let i = 0; i < 42; i++) {
+            cells.push(addDays(firstCell, i));
+        }
+
+        const selectedPropertyId = propSel && propSel.value ? Number(propSel.value) : null;
+        const selectedSource = srcSel && srcSel.value ? String(srcSel.value) : "";
+
+        function matchesFilters(b) {
+            if (selectedPropertyId && Number(b.property?.id) !== selectedPropertyId) return false;
+            if (selectedSource && String(b.source) !== selectedSource) return false;
+            return true;
+        }
+
+        // For quick lookup: which bookings intersect a day
+        grid.innerHTML = cells.map(d => {
+            const inMonth = d.getMonth() === m;
+            const iso = toIsoDate(d);
+            const dayBookings = bookings.filter(b => {
+                if (!matchesFilters(b)) return false;
+                const s = String(b.startDate);
+                const e = String(b.endDate);
+                return iso >= s && iso <= e;
+            }).sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)) || (a.id - b.id));
+
+            const badges = dayBookings.map(b => {
+                const src = escapeHtml(b.source || "");
+                const pid = b.property?.id ?? "?";
+                const gname = escapeHtml(guestLabelFromBooking(b));
+                const s = String(b.startDate);
+                const e = String(b.endDate);
+                const isStart = iso === s;
+                const isEnd = iso === e;
+                let edge = "";
+                if (isStart && isEnd) edge = "1 ночь";
+                else if (isStart) edge = "→ заезд";
+                else if (isEnd) edge = "← выезд";
+                else edge = "·";
+                const hue = bookingHue(b.id);
+                const cls = [sourceClass(b.source), isStart || isEnd ? "" : "cal-mid"].filter(Boolean).join(" ");
+                const title = `Бронь #${b.id} · ${b.source} · объект #${pid} · ${b.startDate} — ${b.endDate}`;
+                return `<div class="cal-badge ${cls}" style="border-left:4px solid hsl(${hue} 58% 46%);" title="${escapeHtml(title)}">`
+                    + `<span class="src">${src}</span>`
+                    + `<span class="cal-guest">${gname}</span>`
+                    + `<span class="cal-dates">${edge} · #${b.id}</span>`
+                    + `</div>`;
+            }).join("");
+
+            return `<div class="cal-cell ${inMonth ? "" : "muted"}"><div class="cal-daynum">${d.getDate()}</div><div class="cal-badges">${badges}</div></div>`;
+        }).join("");
+    }
+
+    async function refreshCalendarConfigs() {
+        const configs = await landlordApi("/api/landlord/calendar-configs", "GET");
+        document.getElementById("calendarConfigsList").innerHTML = configs
+            .map(c => `<li>#${c.id} · объект #${c.property?.id} · ${c.source}</li>`)
+            .join("") || "<li>Нет ICS</li>";
+    }
+
+    async function refreshIntegrations() {
+        const list = await landlordApi("/api/landlord/integrations", "GET");
+        document.getElementById("integrationsList").innerHTML = list
+            .map(i => {
+                let details = `#${i.id} · объект #${i.propertyId} · ${i.platform} · <code>${i.mode}</code>`;
+                if (i.platform === "AVITO" && i.mode === "OPEN_API") {
+                    details += ` <span style="color:var(--muted)">(ключи Авито: ${i.clientIdConfigured && i.clientSecretConfigured ? "✓" : "✗"}, userId: ${i.platformUserId || "✗"})</span>`;
+                }
+                if (i.platform === "CIAN" && i.mode === "OPEN_API") {
+                    details += ` <span style="color:var(--muted)">(ACCESS KEY: ${i.authTokenConfigured ? "✓" : "✗"}${i.platformUserId ? ", employeeId: " + escapeHtml(i.platformUserId) : ""})</span>`;
+                }
+                if (isPartnerApiPlatform(i.platform) && i.mode === "OPEN_API") {
+                    const hasLiveCreds = i.authTokenConfigured || (i.clientIdConfigured && i.clientSecretConfigured);
+                    details += ` <span style="color:var(--muted)">(${hasLiveCreds ? "API ключи: ✓" : "mock/demo без ключей"})</span>`;
+                }
+                return `<li>${details}</li>`;
+            })
+            .join("") || "<li>Каналы не настроены</li>";
+    }
+
+    let selectedAvitoChat = null;
+    window.__avitoChats = [];
+
+    function normalizeChatResponse(response) {
+        if (Array.isArray(response)) {
+            return response;
+        }
+        if (!response || typeof response !== "object") {
+            return [];
+        }
+        const candidates = [response.chats, response.items, response.data, response.result];
+        for (const candidate of candidates) {
+            if (Array.isArray(candidate)) {
+                return candidate;
+            }
+        }
+        if (Number.isInteger(response.length) && response.length >= 0) {
+            return Array.from({ length: response.length })
+                .map((_, i) => response[i] ?? response[String(i)])
+                .filter(Boolean);
+        }
+        return [];
+    }
+
+    function formatMsgTime(ts) {
+        if (!ts) return "";
+        const d = new Date(ts * 1000);
+        return isNaN(d.getTime()) ? "" : d.toLocaleString();
+    }
+
+    function renderChatList() {
+        const ul = document.getElementById("avitoChatsList");
+        if (!ul) return;
+        let list = Array.isArray(window.__avitoChats) ? [...window.__avitoChats] : [];
+        const q = (document.getElementById("chatSearch")?.value || "").trim().toLowerCase();
+        const total = list.length;
+        if (q) {
+            list = list.filter(c => {
+                const hay = [c.counterpartyName, c.title, c.chatId, c.preview, String(c.propertyId)]
+                    .filter(Boolean).join(" ").toLowerCase();
+                return hay.includes(q);
+            });
+        }
+        const sort = document.getElementById("chatSort")?.value || "recent";
+        if (sort === "name") {
+            list.sort((a, b) => {
+                const an = (a.counterpartyName || a.title || "").toLowerCase();
+                const bn = (b.counterpartyName || b.title || "").toLowerCase();
+                return an.localeCompare(bn, "ru");
+            });
+        } else {
+            list.sort((a, b) => (Number(b.updatedAt) || 0) - (Number(a.updatedAt) || 0));
+        }
+        if (!list.length) {
+            const text = total
+                ? `Нет диалогов по фильтру${q ? `: “${escapeHtml(q)}”` : ""}. Всего загружено: ${total}.`
+                : "Диалоги не загружены";
+            ul.innerHTML = `<li class="muted" style="padding:12px;">${text}</li>`;
+            return;
+        }
+        ul.innerHTML = list.map(c => {
+            const prev = escapeHtml((c.preview || "").slice(0, 72));
+            const listing = escapeHtml((c.title || c.chatId || "").slice(0, 48));
+            const guest = (c.counterpartyName && String(c.counterpartyName).trim())
+                ? escapeHtml(String(c.counterpartyName).trim())
+                : "<span class=\"muted\">Имя не пришло из API</span>";
+            return `<li><button type="button" class="messenger-chat-item" data-pid="${c.propertyId}" data-cid="${encodeURIComponent(c.chatId)}" data-title="${encodeURIComponent(c.title || "")}" data-guest="${encodeURIComponent((c.counterpartyName || "").trim())}">`
+                + `<div class="messenger-chat-title">${guest}</div>`
+                + `<div class="messenger-chat-meta">${listing} · #${c.propertyId}</div>`
+                + `<div class="messenger-chat-preview">${prev}</div>`
+                + `</button></li>`;
+        }).join("");
+        ul.querySelectorAll(".messenger-chat-item").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                ul.querySelectorAll(".messenger-chat-item").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                const pid = Number(btn.dataset.pid);
+                const cid = decodeURIComponent(btn.dataset.cid || "");
+                const title = decodeURIComponent(btn.dataset.title || "") || cid;
+                const g = decodeURIComponent(btn.dataset.guest || "");
+                selectedAvitoChat = { propertyId: pid, chatId: cid, title };
+                document.getElementById("messengerPropertyId").value = String(pid);
+                document.getElementById("messengerChatId").value = cid;
+                // Find guest from bookings for this property
+                setGuestFromProperty(pid);
+                try {
+                    await loadAvitoThread(pid, cid, title);
+                } catch (err) {
+                    setLandlordStatus("messageStatus", err.message, false);
+                }
+            });
+        });
+    }
+
+    function setGuestFromProperty(propertyId) {
+        const bookings = Array.isArray(window.__bookings) ? window.__bookings : [];
+        const guest = bookings.find(b => Number(b.property?.id) === Number(propertyId) && b.guest?.id);
+        if (guest) {
+            document.getElementById("replyGuestId").value = guest.guest.id;
+        } else {
+            document.getElementById("replyGuestId").value = "";
+        }
+    }
+
+    async function populateDocTemplateSelect() {
+        try {
+            const templates = await landlordApi("/api/landlord/documents/templates", "GET") || [];
+            const opts = templates.map(t => `<option value="${t.id}">${escapeHtml(t.title)} (${t.documentType})</option>`).join("");
+            ["replyDocTemplate", "tplDocumentTemplate"].forEach(id => {
+                const sel = document.getElementById(id);
+                if (!sel) return;
+                const cur = sel.value;
+                sel.innerHTML = "<option value=\"\">— Без документа —</option>" + opts;
+                if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+            });
+        } catch(e) {}
+    }
+
+    function selectedChatPlatform() {
+        return document.getElementById("chatPlatform")?.value || "AVITO";
+    }
+
+    function isPartnerApiPlatform(platform) {
+        return ["SUTOCHNO", "YANDEX_TRAVEL", "OSTROVOK", "HOSTAWAY", "CHANNEX", "BOOKING", "GUESTY"].includes(platform);
+    }
+
+    function platformLabel(platform) {
+        const labels = {
+            AVITO: "Avito",
+            CIAN: "Циан",
+            SUTOCHNO: "Суточно.ру",
+            YANDEX_TRAVEL: "Яндекс Путешествия",
+            OSTROVOK: "Островок",
+            HOSTAWAY: "Hostaway",
+            CHANNEX: "Channex",
+            BOOKING: "Booking.com",
+            GUESTY: "Guesty"
+        };
+        return labels[platform] || platform;
+    }
+
+    function chatChatsUrl(platform) {
+        if (platform === "CIAN") return "/api/landlord/messages/cian/chats";
+        if (platform === "AVITO") return "/api/landlord/messages/avito/chats";
+        return `/api/landlord/messages/partner/chats?platform=${encodeURIComponent(platform)}`;
+    }
+
+    function chatMessagesUrl(platform, propertyId, chatId) {
+        const qs = `propertyId=${propertyId}&chatId=${encodeURIComponent(chatId)}`;
+        if (platform === "CIAN") return `/api/landlord/messages/cian/messages?${qs}`;
+        if (platform === "AVITO") return `/api/landlord/messages/avito/messages?${qs}`;
+        return `/api/landlord/messages/partner/messages?platform=${encodeURIComponent(platform)}&${qs}`;
+    }
+
+    async function loadAvitoChats() {
+        const platform = selectedChatPlatform();
+        document.getElementById("replyPlatform").value = platform;
+        document.getElementById("chatPlatformTitle").textContent = `Диалоги ${platformLabel(platform)}`;
+        document.getElementById("replyContentLabel").textContent = `Сообщение гостю на ${platformLabel(platform)}`;
+        setLandlordStatus("messageStatus", "Загрузка диалогов…");
+        const rawChats = await landlordApi(chatChatsUrl(platform), "GET");
+        const chats = normalizeChatResponse(rawChats);
+        const ul = document.getElementById("avitoChatsList");
+        if (!chats.length) {
+            window.__avitoChats = [];
+            ul.innerHTML = `<li class="muted" style="padding:12px;">Нет диалогов или не настроен канал ${platform} OPEN_API</li>`;
+            setLandlordStatus("messageStatus", "Готово: 0 диалогов");
+            return;
+        }
+        window.__avitoChats = chats;
+        renderChatList();
+        setLandlordStatus("messageStatus", `Диалогов: ${chats.length}`);
+    }
+
+    async function loadAvitoThread(propertyId, chatId, title) {
+        const thread = document.getElementById("avitoThread");
+        document.getElementById("avitoThreadHeader").textContent = title + " · " + chatId;
+        thread.innerHTML = "<p class=\"muted\">Загрузка…</p>";
+        try {
+            const platform = selectedChatPlatform();
+            const msgs = await landlordApi(
+                chatMessagesUrl(platform, propertyId, chatId),
+                "GET"
+            );
+            if (msgs == null) {
+                thread.innerHTML = "<p class=\"muted\">Сессия истекла — обновите страницу или войдите снова.</p>";
+                return;
+            }
+            if (!Array.isArray(msgs)) {
+                thread.innerHTML = "<p class=\"muted\">Не удалось разобрать ответ сервера (ожидался массив сообщений).</p>";
+                return;
+            }
+            if (!msgs.length) {
+                thread.innerHTML = "<p class=\"muted\">Сообщений нет (или Авито не отдал текст истории при текущей подписке).</p>";
+                return;
+            }
+            thread.innerHTML = msgs.map(m => {
+                const incoming = String(m.direction || "").toLowerCase() === "in";
+                const cls = incoming ? "in" : "out";
+                const text = escapeHtml(m.text || "");
+                const who = m.authorName ? String(m.authorName) : (m.authorId ? "id " + m.authorId : "");
+                const meta = `${incoming ? "Входящее" : "Исходящее"}${who ? " · " + who : ""} · ${formatMsgTime(m.created)}`;
+                return `<div class="msg-bubble ${cls}">${text}<span class="msg-meta">${escapeHtml(meta)}</span></div>`;
+            }).join("");
+            thread.scrollTop = thread.scrollHeight;
+        } catch (err) {
+            thread.innerHTML = `<p class="muted">Не удалось загрузить чат: ${escapeHtml(err.message)}</p>`;
+            setLandlordStatus("messageStatus", err.message, false);
+            throw err;
+        }
+    }
+
+    async function refreshAll() {
+        await refreshProperties();
+        await Promise.all([
+            refreshBookings(),
+            refreshCalendarConfigs(),
+            refreshIntegrations(),
+            refreshDocuments(),
+            populateDocTemplateSelect(),
+            refreshAnalytics()
+        ]);
+    }
+
+    document.getElementById("propertyForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+            await landlordApi("/api/landlord/properties", "POST", formDataToObject(e.target));
+            setLandlordStatus("propertyStatus", "Объект добавлен");
+            e.target.reset();
+            await refreshProperties();
+        } catch (err) {
+            setLandlordStatus("propertyStatus", err.message, false);
+        }
+    });
+
+    document.getElementById("calendarConfigForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+            const body = formDataToObject(e.target);
+            body.enabled = true;
+            await landlordApi("/api/landlord/calendar-configs", "POST", body);
+            setLandlordStatus("calendarStatus", "ICS сохранён");
+            e.target.querySelector('input[name="icaUrl"]').value = "";
+            await refreshCalendarConfigs();
+        } catch (err) {
+            setLandlordStatus("calendarStatus", err.message, false);
+        }
+    });
+
+    document.getElementById("icsSyncForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+            const pid = Number(new FormData(e.target).get("propertyId"));
+            if (!pid) throw new Error("Выберите объект");
+            const res = await landlordApi(`/api/landlord/calendar-configs/sync/${pid}`, "POST");
+            setLandlordStatus("calendarStatus", `Импортировано: ${res.imported}`);
+            await refreshBookings();
+        } catch (err) {
+            setLandlordStatus("calendarStatus", err.message, false);
+        }
+    });
+
+    document.getElementById("integrationForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+            const body = formDataToObject(e.target);
+            body.enabled = true;
+
+            // For Avito OPEN_API, verify credentials and get user_id first
+            if (body.platform === "AVITO" && body.mode === "OPEN_API") {
+                if (!body.clientId || !body.clientSecret) {
+                    throw new Error("Для Avito нужны clientId и clientSecret");
+                }
+                setLandlordStatus("integrationStatus", "Проверка ключей Авито...");
+                const verify = await landlordApi("/api/integrations/avito/verify", "POST", {
+                    clientId: body.clientId,
+                    clientSecret: body.clientSecret
+                });
+                if (!verify.success) {
+                    throw new Error(verify.error || "Неверные ключи Авито");
+                }
+                body.platformUserId = String(verify.user_id);
+            }
+            if (body.platform === "CIAN" && body.mode === "OPEN_API") {
+                if (!body.authToken) {
+                    throw new Error("Для Циан нужен ACCESS KEY");
+                }
+                setLandlordStatus("integrationStatus", "Проверка ACCESS KEY Циан...");
+                const verify = await landlordApi("/api/integrations/cian/verify", "POST", {
+                    accessKey: body.authToken
+                });
+                if (!verify.success) {
+                    throw new Error(verify.error || "Неверный ACCESS KEY Циан");
+                }
+            }
+            if (isPartnerApiPlatform(body.platform) && body.mode === "OPEN_API") {
+                const hasAnythingToVerify = body.authToken || body.clientId || body.clientSecret || body.outboundEndpoint;
+                if (hasAnythingToVerify) {
+                    setLandlordStatus("integrationStatus", `Проверка API ${platformLabel(body.platform)}...`);
+                    const verify = await landlordApi("/api/integrations/partner/verify", "POST", {
+                        platform: body.platform,
+                        authToken: body.authToken,
+                        clientId: body.clientId,
+                        clientSecret: body.clientSecret,
+                        platformUserId: body.platformUserId,
+                        inboundEndpoint: body.inboundEndpoint,
+                        outboundEndpoint: body.outboundEndpoint
+                    });
+                    if (!verify.success) {
+                        throw new Error(verify.message || `Неверные ключи ${platformLabel(body.platform)}`);
+                    }
+                }
+            }
+
+            await landlordApi("/api/landlord/integrations", "POST", body);
+            setLandlordStatus("integrationStatus", "Канал сохранён");
+            e.target.reset();
+            await refreshIntegrations();
+        } catch (err) {
+            setLandlordStatus("integrationStatus", err.message, false);
+        }
+    });
+
+    document.getElementById("guestForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+            await landlordApi("/api/landlord/guests", "POST", formDataToObject(e.target));
+            setLandlordStatus("guestStatus", "Гость создан");
+            e.target.reset();
+        } catch (err) {
+            setLandlordStatus("guestStatus", err.message, false);
+        }
+    });
+
+    document.getElementById("bookingForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+            await landlordApi("/api/landlord/bookings", "POST", formDataToObject(e.target));
+            setLandlordStatus("bookingFormStatus", "Бронь создана");
+            e.target.reset();
+            await refreshBookings();
+        } catch (err) {
+            setLandlordStatus("bookingFormStatus", err.message, false);
+        }
+    });
+
+    document.getElementById("btnRefreshBookings").addEventListener("click", async () => {
+        try {
+            await refreshBookings();
+            setLandlordStatus("bookingStatus", "Обновлено");
+        } catch (err) {
+            setLandlordStatus("bookingStatus", err.message, false);
+        }
+    });
+
+    document.getElementById("btnRefreshAnalytics").addEventListener("click", async () => {
+        try {
+            await refreshAnalytics();
+        } catch (err) {
+            setLandlordStatus("analyticsStatus", err.message, false);
+        }
+    });
+
+    document.getElementById("calPrev").addEventListener("click", () => {
+        calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() - 1, 1);
+        renderCalendar();
+    });
+    document.getElementById("calNext").addEventListener("click", () => {
+        calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + 1, 1);
+        renderCalendar();
+    });
+    document.getElementById("calToday").addEventListener("click", () => {
+        calCursor = new Date();
+        renderCalendar();
+    });
+    document.getElementById("calProperty").addEventListener("change", renderCalendar);
+    document.getElementById("calSource").addEventListener("change", renderCalendar);
+
+    document.getElementById("loadAvitoChats").addEventListener("click", async () => {
+        try {
+            await loadAvitoChats();
+        } catch (err) {
+            setLandlordStatus("messageStatus", err.message, false);
+        }
+    });
+
+    document.getElementById("syncMessages").addEventListener("click", async () => {
+        try {
+            const res = await landlordApi("/api/landlord/messages/sync", "POST");
+            setLandlordStatus("messageStatus", `В БД импортировано новых: ${res.imported}`);
+        } catch (err) {
+            setLandlordStatus("messageStatus", err.message, false);
+        }
+    });
+
+    async function refreshReplyTemplates() {
+        const list = await landlordApi("/api/landlord/reply-templates", "GET") || [];
+        window.__replyTemplates = list;
+    }
+
+    document.getElementById("chatSearch")?.addEventListener("input", () => renderChatList());
+    document.getElementById("chatSort")?.addEventListener("change", () => renderChatList());
+    document.getElementById("chatPlatform")?.addEventListener("change", async () => {
+        selectedAvitoChat = null;
+        document.getElementById("messengerPropertyId").value = "";
+        document.getElementById("messengerChatId").value = "";
+        document.getElementById("replyPlatform").value = selectedChatPlatform();
+        document.getElementById("avitoThreadHeader").textContent = "Выберите диалог слева";
+        document.getElementById("avitoThread").innerHTML = "";
+        await loadAvitoChats().catch(err => setLandlordStatus("messageStatus", err.message, false));
+    });
+
+    document.getElementById("btnSaveTemplate")?.addEventListener("click", async () => {
+        try {
+            const title = (document.getElementById("tplTitle").value || "").trim();
+            const body = document.getElementById("tplBody").value || "";
+            const platform = document.getElementById("tplPlatform").value || "";
+            const docTpl = document.getElementById("tplDocumentTemplate").value;
+            if (!title) throw new Error("Укажите название шаблона");
+            await landlordApi("/api/landlord/reply-templates", "POST", {
+                title, body, platform: platform || null,
+                documentTemplateId: docTpl ? Number(docTpl) : null
+            });
+            document.getElementById("tplTitle").value = "";
+            document.getElementById("tplBody").value = "";
+            setLandlordStatus("messageStatus", "Шаблон сохранён");
+            await refreshReplyTemplates();
+        } catch (err) {
+            setLandlordStatus("messageStatus", err.message, false);
+        }
+    });
+
+    /* ========== Templates popup ========== */
+    document.getElementById("btnOpenTemplates")?.addEventListener("click", async () => {
+        const popup = document.getElementById("templatesPopup");
+        popup.style.display = "flex";
+        await Promise.all([refreshReplyTemplates(), populateDocTemplateSelect()]);
+        renderTemplatesPopup();
+    });
+
+    function renderTemplatesPopup() {
+        const list = window.__replyTemplates || [];
+        const docTpls = document.getElementById("replyDocTemplate")?.innerHTML || "";
+        const ul = document.getElementById("templatesPopupList");
+        ul.innerHTML = list.map(t => {
+            const prev = escapeHtml((t.body || "").slice(0, 120));
+            let docInfo = "";
+            if (t.documentTemplateId) {
+                const sel = document.getElementById("replyDocTemplate");
+                if (sel) {
+                    const opt = sel.querySelector(`option[value="${t.documentTemplateId}"]`);
+                    if (opt) docInfo = `<span class="muted" style="font-size:0.78rem;">📄 ${escapeHtml(opt.textContent)}</span>`;
+                }
+            }
+            return `<li class="template-row" style="cursor:pointer;" data-tpl-id="${t.id}">
+                <div><strong>${escapeHtml(t.title)}</strong>${docInfo}<pre style="margin:4px 0 0;font-size:0.78rem;white-space:pre-wrap;color:var(--muted);">${prev}</pre></div>
+                <button type="button" class="btn btn-ghost tpl-del" data-id="${t.id}" style="padding:4px 8px;font-size:0.8rem;">✕</button>
+            </li>`;
+        }).join("") || "<li class=\"muted\" style=\"padding:8px 0;\">Нет шаблонов. Создайте ниже.</li>";
+
+        // Click on template row → insert into reply
+        ul.querySelectorAll("li[data-tpl-id]").forEach(li => {
+            li.addEventListener("click", (e) => {
+                if (e.target.closest(".tpl-del")) return;
+                const id = Number(li.dataset.tplId);
+                const t = (window.__replyTemplates || []).find(x => x.id === id);
+                if (t) {
+                    document.getElementById("replyContent").value = t.body || "";
+                    // Set document template if template has one
+                    if (t.documentTemplateId) {
+                        const sel = document.getElementById("replyDocTemplate");
+                        if (sel) sel.value = t.documentTemplateId;
+                    }
+                    document.getElementById("templatesPopup").style.display = "none";
+                    setLandlordStatus("messageStatus", "Шаблон вставлен в поле ответа");
+                }
+            });
+        });
+
+        ul.querySelectorAll(".tpl-del").forEach(b => {
+            b.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                if (!confirm("Удалить шаблон?")) return;
+                try {
+                    await landlordApi(`/api/landlord/reply-templates/${b.dataset.id}`, "DELETE");
+                    await refreshReplyTemplates();
+                    renderTemplatesPopup();
+                } catch (err) {
+                    setLandlordStatus("messageStatus", err.message, false);
+                }
+            });
+        });
+    }
+
+    document.getElementById("replyForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+            const formData = new FormData(e.target);
+            const body = {
+                propertyId: Number(formData.get("propertyId")),
+                platform: formData.get("platform"),
+                externalConversationId: formData.get("externalConversationId"),
+                guestDisplayName: "",
+                content: formData.get("content"),
+                guestId: formData.get("guestId") ? Number(formData.get("guestId")) : null,
+                documentTemplateId: formData.get("documentTemplateId") ? Number(formData.get("documentTemplateId")) : null
+            };
+            if (!body.propertyId) throw new Error("Выберите диалог слева");
+            if (!body.externalConversationId) throw new Error("Нет chat id");
+            await landlordApi("/api/landlord/messages/reply", "POST", body);
+            setLandlordStatus("messageStatus", "Отправлено");
+            const ta = document.getElementById("replyContent");
+            if (ta) ta.value = "";
+            if (selectedAvitoChat) {
+                await loadAvitoThread(selectedAvitoChat.propertyId, selectedAvitoChat.chatId, selectedAvitoChat.title);
+            }
+        } catch (err) {
+            setLandlordStatus("messageStatus", err.message, false);
+        }
+    });
+
+    document.querySelector('.tab[data-tab="chat"]').addEventListener("click", () => {
+        loadAvitoChats().catch(err => setLandlordStatus("messageStatus", err.message, false));
+        refreshReplyTemplates().catch(() => {});
+        populateDocTemplateSelect().catch(() => {});
+    });
+
+    document.querySelector('.tab[data-tab="analytics"]').addEventListener("click", () => {
+        refreshAnalytics().catch(err => setLandlordStatus("analyticsStatus", err.message, false));
+    });
+
+    /* ========== Template toggle ========== */
+    document.getElementById("btnToggleTemplates")?.addEventListener("click", () => {
+        const el = document.getElementById("templatesContent");
+        if (el) el.style.display = el.style.display === "none" ? "block" : "none";
+    });
+
+    /* ========== Passport detail modal ========== */
+    let currentPassportGuestId = null;
+
+    document.addEventListener("click", (e) => {
+        const badge = e.target.closest(".guest-passport-badge");
+        if (badge) {
+            const gid = Number(badge.dataset.guestId);
+            if (gid) openPassportModal(gid);
+        }
+    });
+
+    async function openPassportModal(guestId) {
+        currentPassportGuestId = guestId;
+        const modal = document.getElementById("passportModal");
+        const body = document.getElementById("passportModalBody");
+        document.getElementById("pdVerifyStatus").textContent = "";
+        try {
+            const data = await landlordApi(`/api/landlord/guests/${guestId}/passport`, "GET");
+            document.getElementById("pdSeries").textContent = data.passportSeries || "—";
+            document.getElementById("pdNumber").textContent = data.passportNumber || "—";
+            document.getElementById("pdIssuedBy").textContent = data.passportIssuedBy || "—";
+            document.getElementById("pdIssueDate").textContent = data.passportIssueDate || "—";
+            document.getElementById("pdBirthDate").textContent = data.birthDate || "—";
+            document.getElementById("pdPhone").textContent = data.guestPhone || "—";
+            const gallery = document.getElementById("pdGallery");
+            gallery.innerHTML = "";
+            if (data.passportPhoto1) {
+                gallery.innerHTML += `<div><img src="/api/landlord/guests/photos/${data.passportPhoto1}" alt="Фото 1"><p class="muted" style="text-align:center;margin:4px 0 0;">Разворот</p></div>`;
+            }
+            if (data.passportPhoto2) {
+                gallery.innerHTML += `<div><img src="/api/landlord/guests/photos/${data.passportPhoto2}" alt="Фото 2"><p class="muted" style="text-align:center;margin:4px 0 0;">Прописка</p></div>`;
+            }
+            const actions = document.getElementById("pdVerifyActions");
+            if (data.passportVerified === "VERIFIED") {
+                actions.style.display = "none";
+                document.getElementById("pdVerifyStatus").textContent = "✓ Паспорт подтверждён";
+                document.getElementById("pdVerifyStatus").className = "status ok";
+            } else if (data.passportVerified === "REJECTED") {
+                actions.style.display = "none";
+                document.getElementById("pdVerifyStatus").textContent = "✗ Паспорт отклонён";
+                document.getElementById("pdVerifyStatus").className = "status err";
+            } else {
+                actions.style.display = "flex";
+                document.getElementById("pdVerifyStatus").textContent = "Ожидает проверки";
+                document.getElementById("pdVerifyStatus").className = "status";
+            }
+            modal.style.display = "flex";
+        } catch (err) {
+            setLandlordStatus("bookingStatus", err.message, false);
+        }
+    }
+
+
+
+    document.querySelectorAll(".modal-close-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            btn.closest(".modal-overlay").style.display = "none";
+        });
+    });
+    document.querySelectorAll(".modal-overlay").forEach(overlay => {
+        overlay.addEventListener("click", (e) => {
+            if (e.target === overlay) overlay.style.display = "none";
+        });
+    });
+
+    /* ========== Documents ========== */
+    let currentDocId = null;
+
+    async function refreshDocuments() {
+        try {
+            const [allDocs, templates] = await Promise.all([
+                landlordApi("/api/landlord/documents", "GET").catch(() => []),
+                landlordApi("/api/landlord/documents/templates", "GET").catch(() => [])
+            ]);
+
+            const docs = Array.isArray(allDocs) ? allDocs : [];
+            const tpls = Array.isArray(templates) ? templates : [];
+            window.__docTemplates = tpls;
+
+            // Approve tab — documents with AWAITING_APPROVAL
+            const awaitDocs = docs.filter(d => d.status === "AWAITING_APPROVAL");
+            const approveTbody = document.querySelector("#docsApproveTable tbody");
+            if (!awaitDocs.length) {
+                approveTbody.innerHTML = "<tr><td colspan=\"5\">Нет документов, ожидающих проверки</td></tr>";
+            } else {
+                approveTbody.innerHTML = awaitDocs.map(d => {
+                    const gname = d.guestName ? escapeHtml(d.guestName) : "—";
+                    const filledDate = d.guestDataFilledAt ? new Date(d.guestDataFilledAt).toLocaleDateString("ru-RU") : "—";
+                    return `<tr><td>${gname}</td><td>${escapeHtml(d.title || "—")}</td><td>${escapeHtml(d.documentType || "—")}</td><td>${filledDate}</td><td><button type="button" class="btn btn-ghost doc-review" data-id="${d.id}" style="padding:4px 10px;">Проверить</button></td></tr>`;
+                }).join("");
+                approveTbody.querySelectorAll(".doc-review").forEach(btn => {
+                    btn.addEventListener("click", () => openPassportModalFromDoc(Number(btn.dataset.id)));
+                });
+            }
+
+            // Templates tab
+            const list = document.getElementById("docTemplatesList");
+            list.innerHTML = tpls.map(t => {
+                const sys = t.system || !t.landlord ? " <span class=\"pill\" style=\"background:#f1f5f9;color:var(--muted);\">Системный</span>" : "";
+                let configHtml = "";
+                if (t.editableFieldsConfig) {
+                    try {
+                        const cfg = JSON.parse(t.editableFieldsConfig);
+                        const adv = cfg.advancePayment;
+                        const terms = cfg.additionalTerms;
+                        if (adv && adv.enabled) configHtml += `<span class="muted" style="font-size:0.78rem;">Аванс: ${adv.defaultValue || 0}₽</span> `;
+                        if (terms && terms.enabled) configHtml += `<span class="muted" style="font-size:0.78rem;">+ доп. условия</span>`;
+                    } catch(e) {}
+                }
+                const actions = t.landlord
+                    ? `<button type="button" class="btn btn-ghost doc-tpl-edit" data-id="${t.id}" style="padding:4px 10px;font-size:0.82rem;">Редактировать</button>
+                       <button type="button" class="btn btn-ghost tpl-del" data-id="${t.id}" style="padding:4px 8px;font-size:0.82rem;">Удалить</button>`
+                    : `<button type="button" class="btn btn-ghost doc-tpl-copy" data-id="${t.id}" style="padding:4px 10px;font-size:0.82rem;">Сделать свою версию</button>`;
+                return `<li class="template-row"><div><strong>${escapeHtml(t.title)}</strong>${sys}<span class="muted" style="font-size:0.78rem;"> · ${t.documentType}</span>${configHtml ? `<br>${configHtml}` : ""}</div><div class="row-tight">${actions}</div></li>`;
+            }).join("") || "<li class=\"muted\">Нет шаблонов</li>";
+
+            list.querySelectorAll(".doc-tpl-copy").forEach(b => {
+                b.addEventListener("click", async () => {
+                    try {
+                        const copy = await landlordApi(`/api/landlord/documents/templates/${b.dataset.id}/copy`, "POST");
+                        setLandlordStatus("docTemplateStatus", "Создана личная версия стандартного шаблона");
+                        await refreshDocuments();
+                        await populateDocTemplateSelect();
+                        openDocTemplateEditor(copy);
+                    } catch (err) {
+                        setLandlordStatus("docTemplateStatus", err.message, false);
+                    }
+                });
+            });
+
+            list.querySelectorAll(".doc-tpl-edit").forEach(b => {
+                b.addEventListener("click", () => {
+                    const tpl = (window.__docTemplates || []).find(x => Number(x.id) === Number(b.dataset.id));
+                    if (tpl) openDocTemplateEditor(tpl);
+                });
+            });
+
+            list.querySelectorAll(".tpl-del").forEach(b => {
+                b.addEventListener("click", async () => {
+                    if (!confirm("Удалить шаблон?")) return;
+                    try {
+                        await landlordApi(`/api/landlord/documents/templates/${b.dataset.id}`, "DELETE");
+                        await refreshDocuments();
+                        await populateDocTemplateSelect();
+                    } catch (err) {
+                        setLandlordStatus("docStatus", err.message, false);
+                    }
+                });
+            });
+
+            // PDF tab — finalized documents
+            const pdfDocs = docs.filter(d => d.status === "FINALIZED" && d.pdfToken);
+            const pdfTbody = document.querySelector("#docsPdfTable tbody");
+            if (!pdfDocs.length) {
+                pdfTbody.innerHTML = "<tr><td colspan=\"5\">Нет готовых PDF</td></tr>";
+            } else {
+                pdfTbody.innerHTML = pdfDocs.map(d => {
+                    const gname = d.guestName ? escapeHtml(d.guestName) : "—";
+                    const date = d.landlordReviewedAt ? new Date(d.landlordReviewedAt).toLocaleDateString("ru-RU") : "—";
+                    return `<tr><td>${escapeHtml(d.title || "—")}</td><td>${gname}</td><td>${escapeHtml(d.documentType || "—")}</td><td>${date}</td><td><a href="/api/public/documents/${d.pdfToken}" target="_blank" rel="noopener" class="btn btn-ghost" style="padding:4px 10px;">Скачать PDF</a></td></tr>`;
+                }).join("");
+            }
+        } catch (err) {
+            setLandlordStatus("docStatus", err.message, false);
+        }
+    }
+
+    function openDocTemplateEditor(tpl) {
+        document.getElementById("docTplEditId").value = tpl.id;
+        document.getElementById("docTplEditTitle").value = tpl.title || "";
+        document.getElementById("docTplEditType").value = tpl.documentType || "CONTRACT";
+        document.getElementById("docTplEditBody").value = tpl.bodyHtml || "";
+        document.getElementById("docTplEditConfig").value = tpl.editableFieldsConfig || "";
+        document.getElementById("docTplEditStatus").textContent = "";
+        document.getElementById("docTemplateEditorModal").style.display = "flex";
+    }
+
+    document.getElementById("btnSaveDocTemplateEdit")?.addEventListener("click", async () => {
+        try {
+            const id = document.getElementById("docTplEditId").value;
+            const title = document.getElementById("docTplEditTitle").value.trim();
+            const documentType = document.getElementById("docTplEditType").value;
+            const bodyHtml = document.getElementById("docTplEditBody").value;
+            const editableFieldsConfig = document.getElementById("docTplEditConfig").value;
+            if (!id) throw new Error("Шаблон не выбран");
+            if (!title) throw new Error("Укажите название");
+            await landlordApi(`/api/landlord/documents/templates/${id}`, "PUT", {
+                title, documentType, bodyHtml, editableFieldsConfig
+            });
+            setLandlordStatus("docTplEditStatus", "Шаблон сохранён");
+            await refreshDocuments();
+            await populateDocTemplateSelect();
+        } catch (err) {
+            setLandlordStatus("docTplEditStatus", err.message, false);
+        }
+    });
+
+    async function openPassportModalFromDoc(docId) {
+        try {
+            const doc = await landlordApi(`/api/landlord/documents/${docId}`, "GET");
+            const guestId = doc.guest?.id;
+            if (!guestId) { setLandlordStatus("docStatus", "Гость не найден", false); return; }
+            currentPassportGuestId = guestId;
+            currentDocId = docId;
+            const modal = document.getElementById("passportModal");
+            const data = await landlordApi(`/api/landlord/guests/${guestId}/passport`, "GET");
+            document.getElementById("pdSeries").textContent = data.passportSeries || "—";
+            document.getElementById("pdNumber").textContent = data.passportNumber || "—";
+            document.getElementById("pdIssuedBy").textContent = data.passportIssuedBy || "—";
+            document.getElementById("pdIssueDate").textContent = data.passportIssueDate || "—";
+            document.getElementById("pdBirthDate").textContent = data.birthDate || "—";
+            document.getElementById("pdPhone").textContent = data.guestPhone || "—";
+            const gallery = document.getElementById("pdGallery");
+            gallery.innerHTML = "";
+            if (data.passportPhoto1) {
+                gallery.innerHTML += `<div><img src="/api/landlord/guests/photos/${data.passportPhoto1}" alt="Фото 1"><p class="muted" style="text-align:center;margin:4px 0 0;">Разворот</p></div>`;
+            }
+            if (data.passportPhoto2) {
+                gallery.innerHTML += `<div><img src="/api/landlord/guests/photos/${data.passportPhoto2}" alt="Фото 2"><p class="muted" style="text-align:center;margin:4px 0 0;">Прописка</p></div>`;
+            }
+            const actions = document.getElementById("pdVerifyActions");
+            if (data.passportVerified === "VERIFIED") {
+                actions.style.display = "none";
+                document.getElementById("pdVerifyStatus").textContent = "✓ Паспорт подтверждён";
+                document.getElementById("pdVerifyStatus").className = "status ok";
+            } else if (data.passportVerified === "REJECTED") {
+                actions.style.display = "none";
+                document.getElementById("pdVerifyStatus").textContent = "✗ Паспорт отклонён";
+                document.getElementById("pdVerifyStatus").className = "status err";
+            } else {
+                actions.style.display = "flex";
+                document.getElementById("pdVerifyStatus").textContent = "Ожидает проверки";
+                document.getElementById("pdVerifyStatus").className = "status";
+            }
+            modal.style.display = "flex";
+        } catch (err) {
+            setLandlordStatus("docStatus", err.message, false);
+        }
+    }
+
+    // Upload .docx template
+    document.getElementById("btnUploadDocTemplate")?.addEventListener("click", async () => {
+        try {
+            const title = document.getElementById("dtTitle").value.trim();
+            const documentType = document.getElementById("dtType").value;
+            const fileInput = document.getElementById("dtFile");
+            if (!title) throw new Error("Укажите название");
+            if (!fileInput || !fileInput.files.length) throw new Error("Выберите .docx файл");
+
+            const fd = new FormData();
+            fd.append("file", fileInput.files[0]);
+            fd.append("title", title);
+            fd.append("documentType", documentType);
+
+            await landlordApi("/api/landlord/documents/templates/upload", "POST", fd);
+            document.getElementById("dtTitle").value = "";
+            document.getElementById("dtFile").value = "";
+            setLandlordStatus("docTemplateStatus", "Шаблон загружен");
+            await refreshDocuments();
+        } catch (err) {
+            setLandlordStatus("docTemplateStatus", err.message, false);
+        }
+    });
+
+    // Document sub-tabs
+    document.querySelectorAll("[data-doc-tab]").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll("[data-doc-tab]").forEach(b => {
+                b.classList.toggle("active", b === btn);
+                b.setAttribute("aria-selected", b === btn ? "true" : "false");
+            });
+            document.querySelectorAll(".doc-tab-panel").forEach(p => p.style.display = "none");
+            const tabId = btn.dataset.docTab;
+            const panel = document.getElementById("docTab" + tabId.charAt(0).toUpperCase() + tabId.slice(1));
+            if (panel) panel.style.display = "block";
+        });
+    });
+    // Show first sub-tab by default
+    const firstDocTab = document.querySelector('[data-doc-tab="approve"]');
+    if (firstDocTab) firstDocTab.click();
+
+    document.querySelector('.tab[data-tab="docs"]').addEventListener("click", () => {
+        refreshDocuments().catch(err => setLandlordStatus("docStatus", err.message, false));
+    });
+
+    // Update the passport modal to handle document approval/rejection
+    document.getElementById("btnVerifyPassport")?.addEventListener("click", async () => {
+        if (!currentPassportGuestId) return;
+        try {
+            await landlordApi(`/api/landlord/guests/${currentPassportGuestId}/verify`, "POST", { status: "VERIFIED" });
+            // Also approve the document if in doc context
+            if (currentDocId) {
+                await landlordApi(`/api/landlord/documents/${currentDocId}/approve`, "POST");
+            }
+            document.getElementById("pdVerifyActions").style.display = "none";
+            document.getElementById("pdVerifyStatus").textContent = "✓ Паспорт подтверждён, PDF сформирован";
+            document.getElementById("pdVerifyStatus").className = "status ok";
+            await refreshDocuments();
+        } catch (err) {
+            setLandlordStatus("docStatus", err.message, false);
+        }
+    });
+
+    document.getElementById("btnRejectPassport")?.addEventListener("click", async () => {
+        if (!currentPassportGuestId) return;
+        try {
+            await landlordApi(`/api/landlord/guests/${currentPassportGuestId}/verify`, "POST", { status: "REJECTED" });
+            if (currentDocId) {
+                await landlordApi(`/api/landlord/documents/${currentDocId}/reject`, "POST");
+            }
+            document.getElementById("pdVerifyActions").style.display = "none";
+            document.getElementById("pdVerifyStatus").textContent = "✗ Паспорт отклонён";
+            document.getElementById("pdVerifyStatus").className = "status err";
+            await refreshDocuments();
+        } catch (err) {
+            setLandlordStatus("docStatus", err.message, false);
+        }
+    });
+
+    /* ========== Settings ========== */
+    async function loadSettings() {
+        const profileEl = document.getElementById("settingsProfileContent");
+        const demoEl = document.getElementById("settingsDemoContent");
+        const guestEl = document.getElementById("settingsGuestContent");
+        const retentionEl = document.getElementById("settingsRetentionContent");
+        const auditEl = document.getElementById("settingsAuditContent");
+        try {
+            const [profile, cfg, retention, auditEvents] = await Promise.all([
+                landlordApi("/api/landlord/settings/profile", "GET"),
+                landlordApi("/api/landlord/settings/guest-card", "GET"),
+                landlordApi("/api/landlord/settings/retention", "GET"),
+                landlordApi("/api/landlord/audit", "GET")
+            ]);
+            let fields = [];
+            try { fields = JSON.parse(cfg.fieldsConfigJson || "[]"); } catch(e) {}
+
+            profileEl.innerHTML = `
+                <div class="landlord-form settings-form">
+                    <input id="profName" value="${escapeHtml(profile.name || "")}" placeholder="Имя">
+                    <input id="profSurname" value="${escapeHtml(profile.surname || "")}" placeholder="Фамилия">
+                    <input id="profPhone" value="${escapeHtml(profile.phone || "")}" placeholder="Телефон">
+                    <input id="profLandlordPassportSeries" value="${escapeHtml(profile.landlordPassportSeries || "")}" placeholder="Серия паспорта арендодателя">
+                    <input id="profLandlordPassportNumber" value="${escapeHtml(profile.landlordPassportNumber || "")}" placeholder="Номер паспорта арендодателя">
+                    <input id="profLandlordPassportIssueDate" value="${escapeHtml(profile.landlordPassportIssueDate || "")}" type="date" placeholder="Дата выдачи паспорта арендодателя">
+                    <input id="profLandlordPassportIssuedBy" value="${escapeHtml(profile.landlordPassportIssuedBy || "")}" placeholder="Кем выдан паспорт арендодателя">
+                    <input id="profLandlordRegistrationAddress" value="${escapeHtml(profile.landlordRegistrationAddress || "")}" placeholder="Адрес регистрации арендодателя">
+                    <div class="settings-actions">
+                        <button class="btn btn-primary" type="button" id="btnSaveProfile">Сохранить профиль</button>
+                    </div>
+                </div>
+                <div id="profStatus" class="status"></div>
+            `;
+
+            demoEl.innerHTML = `
+                <div class="demo-actions">
+                    <button class="btn btn-primary" type="button" id="btnSeedDemo">Подготовить демо-сценарий</button>
+                    <button class="btn btn-ghost" type="button" id="btnDemoSafeReply">Отправить тестовый ответ</button>
+                </div>
+                <div id="demoStatus" class="status"></div>
+                <div id="demoLinks" class="help-callout" style="display:none;"></div>
+            `;
+
+            guestEl.innerHTML = `
+                <label class="settings-toggle">
+                    <input type="checkbox" id="gcEnabled" ${cfg.enabled ? "checked" : ""}>
+                    <span>
+                        <strong>Карта гостя включена</strong>
+                        <small>Гость увидит активные поля в анкете по временной ссылке.</small>
+                    </span>
+                </label>
+                <div id="gcFieldsList" class="guest-fields-list">
+                    ${fields.map((f, i) => `
+                        <div class="guest-field-row">
+                            <div class="guest-field-title">
+                                <strong>${escapeHtml(f.label)}</strong>
+                                <span>${escapeHtml(f.field)}</span>
+                            </div>
+                            <label>
+                                <input type="checkbox" class="gc-field-enabled" data-idx="${i}" ${f.enabled ? "checked" : ""}>
+                                Показывать
+                            </label>
+                            <label>
+                                <input type="checkbox" class="gc-field-required" data-idx="${i}" ${f.required ? "checked" : ""}>
+                                Обязательное
+                            </label>
+                            <input class="gc-field-label" data-idx="${i}" value="${escapeHtml(f.label)}" placeholder="Название поля">
+                        </div>
+                    `).join("") || `<p class="muted">Поля карты гостя пока не настроены.</p>`}
+                </div>
+                <div class="settings-actions">
+                    <button class="btn btn-primary" type="button" id="btnSaveGuestCard">Сохранить настройки</button>
+                </div>
+                <div id="gcStatus" class="status"></div>
+            `;
+            renderRetentionPolicy(retention);
+            renderAuditEvents(auditEvents);
+
+            document.getElementById("btnSaveGuestCard").addEventListener("click", async () => {
+                try {
+                    const enabled = document.getElementById("gcEnabled").checked;
+                    const fieldEls = document.querySelectorAll(".gc-field-enabled");
+                    const requiredEls = document.querySelectorAll(".gc-field-required");
+                    const labelEls = document.querySelectorAll(".gc-field-label");
+                    const updatedFields = fields.map((f, i) => ({
+                        field: f.field,
+                        label: labelEls[i] ? labelEls[i].value : f.label,
+                        enabled: fieldEls[i] ? fieldEls[i].checked : f.enabled,
+                        required: requiredEls[i] ? requiredEls[i].checked : f.required
+                    }));
+                    await landlordApi("/api/landlord/settings/guest-card", "PUT", {
+                        enabled,
+                        fieldsConfigJson: JSON.stringify(updatedFields),
+                        customFieldsJson: cfg.customFieldsJson || "[]"
+                    });
+                    document.getElementById("gcStatus").textContent = "Настройки сохранены";
+                    document.getElementById("gcStatus").className = "status ok";
+                } catch (err) {
+                    document.getElementById("gcStatus").textContent = err.message;
+                    document.getElementById("gcStatus").className = "status err";
+                }
+            });
+
+            document.getElementById("btnRefreshAudit")?.addEventListener("click", async () => {
+                try {
+                    await refreshAudit();
+                } catch (err) {
+                    if (auditEl) auditEl.innerHTML = `<p class="muted">Ошибка загрузки журнала: ${escapeHtml(err.message)}</p>`;
+                }
+            });
+
+            let demoState = null;
+            document.getElementById("btnSeedDemo").addEventListener("click", async () => {
+                try {
+                    demoState = await landlordApi("/api/landlord/demo/seed", "POST");
+                    document.getElementById("demoStatus").textContent = "Демо подготовлено";
+                    document.getElementById("demoStatus").className = "status ok";
+                    document.getElementById("demoLinks").style.display = "block";
+                    document.getElementById("demoLinks").innerHTML = `
+                        <p style="margin:0 0 8px;"><strong>Гость:</strong> ${escapeHtml(demoState.guestEmail)} / пароль <code>test123</code></p>
+                        <p style="margin:0 0 8px;"><strong>Анкета гостя:</strong> <a href="${demoState.guestFormUrl}" target="_blank" rel="noopener">${demoState.guestFormUrl}</a></p>
+                        <p style="margin:0;"><strong>Документ:</strong> <a href="${demoState.documentUrl}" target="_blank" rel="noopener">${demoState.documentUrl}</a></p>
+                    `;
+                    await refreshAll();
+                } catch (err) {
+                    document.getElementById("demoStatus").textContent = err.message;
+                    document.getElementById("demoStatus").className = "status err";
+                }
+            });
+
+            document.getElementById("btnDemoSafeReply").addEventListener("click", async () => {
+                try {
+                    if (!demoState) {
+                        demoState = await landlordApi("/api/landlord/demo/seed", "POST");
+                    }
+                    const reply = await landlordApi("/api/landlord/messages/reply", "POST", {
+                        propertyId: demoState.propertyId,
+                        platform: "SUTOCHNO",
+                        externalConversationId: demoState.externalConversationId,
+                        guestDisplayName: "Демо-гость",
+                        guestId: demoState.guestId,
+                        documentTemplateId: demoState.documentTemplateId,
+                        content: "Здравствуйте! Для заселения заполните данные по ссылке."
+                    });
+                    document.getElementById("demoStatus").textContent = `Тестовый ответ сохранён в истории как ${reply.deliveryStatus}`;
+                    document.getElementById("demoStatus").className = "status ok";
+                } catch (err) {
+                    document.getElementById("demoStatus").textContent = err.message;
+                    document.getElementById("demoStatus").className = "status err";
+                }
+            });
+
+            document.getElementById("btnSaveProfile").addEventListener("click", async () => {
+                try {
+                    const name = document.getElementById("profName").value.trim();
+                    const surname = document.getElementById("profSurname").value.trim();
+                    const phone = document.getElementById("profPhone").value.trim();
+                    const landlordPassportSeries = document.getElementById("profLandlordPassportSeries").value.trim();
+                    const landlordPassportNumber = document.getElementById("profLandlordPassportNumber").value.trim();
+                    const landlordPassportIssuedBy = document.getElementById("profLandlordPassportIssuedBy").value.trim();
+                    const landlordPassportIssueDate = document.getElementById("profLandlordPassportIssueDate").value || null;
+                    const landlordRegistrationAddress = document.getElementById("profLandlordRegistrationAddress").value.trim();
+                    await landlordApi("/api/landlord/settings/profile", "PUT", {
+                        name, surname, phone,
+                        landlordPassportSeries,
+                        landlordPassportNumber,
+                        landlordPassportIssuedBy,
+                        landlordPassportIssueDate,
+                        landlordRegistrationAddress
+                    });
+                    document.getElementById("profStatus").textContent = "Профиль сохранён";
+                    document.getElementById("profStatus").className = "status ok";
+                } catch (err) {
+                    document.getElementById("profStatus").textContent = err.message;
+                    document.getElementById("profStatus").className = "status err";
+                }
+            });
+
+        } catch (err) {
+            if (profileEl) profileEl.innerHTML = `<p class="muted">Ошибка загрузки профиля: ${escapeHtml(err.message)}</p>`;
+            if (demoEl) demoEl.innerHTML = `<p class="muted">Демо-сценарий временно недоступен.</p>`;
+            if (guestEl) guestEl.innerHTML = `<p class="muted">Ошибка загрузки карты гостя: ${escapeHtml(err.message)}</p>`;
+            if (retentionEl) retentionEl.innerHTML = `<p class="muted">Ошибка загрузки политики хранения: ${escapeHtml(err.message)}</p>`;
+            if (auditEl) auditEl.innerHTML = `<p class="muted">Ошибка загрузки журнала: ${escapeHtml(err.message)}</p>`;
+        }
+    }
+
+    document.querySelector('.tab[data-tab="settings"]').addEventListener("click", () => {
+        loadSettings().catch(err => {
+            const profileEl = document.getElementById("settingsProfileContent");
+            if (profileEl) profileEl.innerHTML = `<p class="muted">Ошибка: ${escapeHtml(err.message)}</p>`;
+        });
+    });
+
+    refreshAll().catch(() => {});
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход — Short Rental</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="shell">
+    <div class="card auth-card">
+        <h1>Вход</h1>
+        <p class="muted">Кабинет арендодателя</p>
+
+        <div class="info-banner" th:if="${param.registered}">Регистрация прошла успешно. Войдите с тем же email.</div>
+        <div class="error-banner" th:if="${param.error}">Неверный email или пароль.</div>
+
+        <form class="landlord-form" th:action="@{/login}" method="post">
+            <input type="text" name="username" placeholder="Email" required autocomplete="username">
+            <input type="password" name="password" placeholder="Пароль" required autocomplete="current-password">
+            <button class="btn btn-primary" type="submit">Войти</button>
+        </form>
+        <p class="muted" style="margin-top:16px;">Нет аккаунта? <a th:href="@{/register}">Зарегистрироваться</a></p>
+        <p class="muted"><a th:href="@{/}">На главную</a></p>
+    </div>
+</div>
+</body>
+</html>

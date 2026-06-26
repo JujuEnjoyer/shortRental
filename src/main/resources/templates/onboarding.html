@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройка — Short Rental</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="shell wizard-shell">
+    <header class="topbar">
+        <div class="brand">Short<span>Rental</span></div>
+        <form th:action="@{/logout}" method="post">
+            <button class="btn btn-ghost" type="submit">Выйти</button>
+        </form>
+    </header>
+
+    <h1 style="margin-bottom:8px;">Добро пожаловать</h1>
+    <p class="muted" style="margin-bottom:24px;">Пройдите короткую настройку — обычно 2–3 минуты. Объект недвижимости обязателен; календари и чаты можно добавить сразу или позже в кабинете.</p>
+
+    <div class="wizard-progress" id="wizardProgress" aria-hidden="true">
+        <div class="wizard-dot" data-i="0"></div>
+        <div class="wizard-dot" data-i="1"></div>
+        <div class="wizard-dot" data-i="2"></div>
+        <div class="wizard-dot" data-i="3"></div>
+        <div class="wizard-dot" data-i="4"></div>
+        <div class="wizard-dot" data-i="5"></div>
+    </div>
+
+    <div class="card">
+        <div class="wizard-step active" data-step="0">
+            <h2><span class="step-num">1</span>Профиль</h2>
+            <p class="muted">Как к вам обращаться в кабинете.</p>
+            <form id="profileForm" class="landlord-form">
+                <input id="profName" name="name" placeholder="Имя" required>
+                <input id="profSurname" name="surname" placeholder="Фамилия" required>
+                <button class="btn btn-primary" type="submit">Сохранить и продолжить</button>
+            </form>
+            <div id="profileStatus" class="status"></div>
+        </div>
+
+        <div class="wizard-step" data-step="1">
+            <h2><span class="step-num">2</span>Первый объект</h2>
+            <p class="muted">Квартира или дом, который сдаёте. Без объекта нельзя подключать календари и каналы сообщений.</p>
+            <form id="onbPropertyForm" class="landlord-form">
+                <input name="name" placeholder="Название (напр. «2к, центр»)" required>
+                <input name="address" placeholder="Адрес" required>
+                <button class="btn btn-primary" type="submit">Добавить объект</button>
+            </form>
+            <div id="onbPropStatus" class="status"></div>
+            <ul id="onbPropList" class="data-list"></ul>
+            <div class="wizard-actions">
+                <button class="btn btn-ghost" type="button" id="back1">Назад</button>
+                <button class="btn btn-primary" type="button" id="next1" disabled>Далее</button>
+            </div>
+        </div>
+
+        <div class="wizard-step" data-step="2">
+            <h2><span class="step-num">3</span>Календари площадок (ICS)</h2>
+            <p class="muted">Вставьте ссылку на .ics из личного кабинета Авито, Ostrovok и т.д. — занятые даты подтянутся в ваш общий календарь.</p>
+            <form id="onbIcsForm" class="landlord-form">
+                <select name="propertyId" data-property-select required></select>
+                <select name="source">
+                    <option value="AVITO">AVITO</option>
+                    <option value="SUTOCHNO">SUTOCHNO</option>
+                    <option value="CIAN">CIAN</option>
+                    <option value="YANDEX_TRAVEL">YANDEX_TRAVEL</option>
+                    <option value="OSTROVOK">OSTROVOK</option>
+                    <option value="HOSTAWAY">HOSTAWAY</option>
+                    <option value="CHANNEX">CHANNEX</option>
+                    <option value="GUESTY">GUESTY</option>
+                    <option value="BOOKING">BOOKING</option>
+                    <option value="AIRBNB">AIRBNB</option>
+                    <option value="OTHER">OTHER</option>
+                </select>
+                <input name="icaUrl" placeholder="https://…/calendar.ics" required>
+                <button class="btn btn-primary" type="submit">Подключить ICS</button>
+            </form>
+            <div id="onbIcsStatus" class="status"></div>
+            <div class="wizard-actions">
+                <button class="btn btn-ghost" type="button" id="back2">Назад</button>
+                <button class="btn btn-ghost" type="button" id="skipIcs">Пропустить</button>
+                <button class="btn btn-primary" type="button" id="next2">Далее</button>
+            </div>
+        </div>
+
+        <div class="wizard-step" data-step="3">
+            <h2><span class="step-num">4</span>Сообщения с гостями</h2>
+            <p class="muted">Подключение «чатов» с площадок к одному окну. Сейчас в системе три типа каналов (в дипломе вы описываете и дорабатываете реальные адаптеры).</p>
+            <div class="help-callout">
+                <h3>Как это устроено</h3>
+                <ul>
+                    <li><strong>OPEN_API</strong> — официальный API площадки (например, партнёрский доступ): сервер сам забирает и отправляет сообщения.</li>
+                    <li><strong>EMAIL_RELAY</strong> — площадка шлёт письма на скрытый адрес; мы парсим почту и отвечаем от имени relay — гость видит ответ на сайте.</li>
+                </ul>
+            </div>
+            <form id="onbIntForm" class="landlord-form" style="margin-top:16px;">
+                <select name="propertyId" data-property-select required></select>
+                <select name="platform">
+                    <option value="AVITO">AVITO</option>
+                    <option value="CIAN">CIAN</option>
+                    <option value="SUTOCHNO">SUTOCHNO</option>
+                    <option value="YANDEX_TRAVEL">YANDEX_TRAVEL</option>
+                    <option value="OSTROVOK">OSTROVOK</option>
+                    <option value="HOSTAWAY">HOSTAWAY</option>
+                    <option value="CHANNEX">CHANNEX</option>
+                    <option value="BOOKING">BOOKING</option>
+                    <option value="GUESTY">GUESTY</option>
+                    <option value="OTHER">OTHER</option>
+                </select>
+                <select name="mode">
+                    <option value="OPEN_API">OPEN_API</option>
+                    <option value="EMAIL_RELAY">EMAIL_RELAY</option>
+                </select>
+                <input name="clientId" placeholder="Avito: client_id / Ostrovok: key id">
+                <input name="clientSecret" type="password" placeholder="Avito: client_secret / Ostrovok: api key">
+                <input name="authToken" type="password" placeholder="ACCESS KEY / API token / OAuth token / mock">
+                <input name="platformUserId" id="onbPlatformUserId" placeholder="Циан: employeeId / Booking: affiliate id / account id">
+                <input name="inboundEndpoint" placeholder="Avito: item_id / custom API base / demo или mock">
+                <input name="outboundEndpoint" placeholder="API base URL или URL проверки (опц.)">
+                <button class="btn btn-primary" type="submit">Сохранить канал</button>
+            </form>
+            <div id="onbIntStatus" class="status"></div>
+            <div class="wizard-actions">
+                <button class="btn btn-ghost" type="button" id="back3">Назад</button>
+                <button class="btn btn-ghost" type="button" id="skipInt">Пропустить</button>
+                <button class="btn btn-primary" type="button" id="next3">Далее</button>
+            </div>
+        </div>
+
+        <div class="wizard-step" data-step="4">
+            <h2><span class="step-num">5</span>Шаблон договора</h2>
+            <p class="muted">Выберите шаблон документа для гостей. Можно настроить позже в кабинете.</p>
+            <div id="onbTemplatesList" class="template-list" style="margin-bottom:12px;"></div>
+            <div class="help-callout" style="margin-top:12px;">
+                <p style="margin:0;font-size:0.85rem;">Стандартные шаблоны уже готовы. Позже в кабинете можно загрузить свой .docx и настроить аванс.</p>
+            </div>
+            <div id="onbTemplateStatus" class="status"></div>
+            <div class="wizard-actions">
+                <button class="btn btn-ghost" type="button" id="back4">Назад</button>
+                <button class="btn btn-ghost" type="button" id="skipTemplate">Пропустить</button>
+                <button class="btn btn-primary" type="button" id="next4">Далее</button>
+            </div>
+        </div>
+
+        <div class="wizard-step" data-step="5">
+            <h2><span class="step-num">6</span>Готово</h2>
+            <p class="muted">Настройка завершена. Вы попадёте в кабинет с вкладками: календарь, чаты, объекты, документы.</p>
+            <p class="muted">Экспорт вашего общего календаря для вставки на площадки: в кабинете у каждого объекта есть ссылка <code>.ics</code> — её достаточно указать <strong>один раз</strong> в настройках импорта на площадке.</p>
+            <div id="finishStatus" class="status"></div>
+            <div class="wizard-actions" style="justify-content:flex-end;">
+                <button class="btn btn-ghost" type="button" id="back5">Назад</button>
+                <button class="btn btn-primary" type="button" id="finishOnboarding">Перейти в кабинет</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/js/landlord-api.js}"></script>
+<script>
+    let step = 0;
+
+    function showStep(n) {
+        step = n;
+        document.querySelectorAll(".wizard-step").forEach(el => {
+            el.classList.toggle("active", Number(el.dataset.step) === n);
+        });
+        document.querySelectorAll(".wizard-dot").forEach((dot, i) => {
+            dot.classList.remove("done", "current");
+            if (i < n) dot.classList.add("done");
+            if (i === n) dot.classList.add("current");
+        });
+    }
+
+    async function refreshOnbProperties() {
+        const list = await landlordApi("/api/landlord/properties", "GET");
+        fillPropertySelects(list);
+        document.getElementById("onbPropList").innerHTML = list.length
+            ? list.map(p => `<li>#${p.id} ${p.name}</li>`).join("")
+            : "<li>Пока нет объектов — добавьте выше</li>";
+        document.getElementById("next1").disabled = list.length === 0;
+        return list;
+    }
+
+    document.getElementById("profileForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+            const body = formDataToObject(e.target);
+            await landlordApi("/api/landlord/profile", "PATCH", body);
+            setLandlordStatus("profileStatus", "Сохранено");
+            showStep(1);
+            await refreshOnbProperties();
+        } catch (err) {
+            setLandlordStatus("profileStatus", err.message, false);
+        }
+    });
+
+    document.getElementById("onbPropertyForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+            await landlordApi("/api/landlord/properties", "POST", formDataToObject(e.target));
+            setLandlordStatus("onbPropStatus", "Объект добавлен");
+            e.target.reset();
+            await refreshOnbProperties();
+        } catch (err) {
+            setLandlordStatus("onbPropStatus", err.message, false);
+        }
+    });
+
+    document.getElementById("back1").addEventListener("click", () => showStep(0));
+    document.getElementById("next1").addEventListener("click", async () => {
+        await refreshOnbProperties();
+        showStep(2);
+    });
+
+    document.getElementById("onbIcsForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+            const body = formDataToObject(e.target);
+            body.enabled = true;
+            if (!body.propertyId) throw new Error("Выберите объект");
+            await landlordApi("/api/landlord/calendar-configs", "POST", body);
+            setLandlordStatus("onbIcsStatus", "ICS подключён");
+            e.target.querySelector('input[name="icaUrl"]').value = "";
+        } catch (err) {
+            setLandlordStatus("onbIcsStatus", err.message, false);
+        }
+    });
+    document.getElementById("back2").addEventListener("click", () => showStep(1));
+    document.getElementById("skipIcs").addEventListener("click", () => showStep(3));
+    document.getElementById("next2").addEventListener("click", async () => {
+        await refreshOnbProperties();
+        showStep(3);
+    });
+
+    document.getElementById("onbIntForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+            const body = formDataToObject(e.target);
+            body.enabled = true;
+            if (!body.propertyId) throw new Error("Выберите объект");
+            if (body.platform === "AVITO" && body.mode === "OPEN_API") {
+                if (!body.clientId || !body.clientSecret) {
+                    throw new Error("Для Avito нужны clientId и clientSecret");
+                }
+                setLandlordStatus("onbIntStatus", "Проверка ключей Авито...");
+                const verify = await landlordApi("/api/integrations/avito/verify", "POST", {
+                    clientId: body.clientId,
+                    clientSecret: body.clientSecret
+                });
+                if (!verify.success) {
+                    throw new Error(verify.error || "Неверные ключи Авито");
+                }
+                body.platformUserId = String(verify.user_id);
+            }
+            if (body.platform === "CIAN" && body.mode === "OPEN_API") {
+                if (!body.authToken) {
+                    throw new Error("Для Циан нужен ACCESS KEY");
+                }
+                setLandlordStatus("onbIntStatus", "Проверка ACCESS KEY Циан...");
+                const verify = await landlordApi("/api/integrations/cian/verify", "POST", {
+                    accessKey: body.authToken
+                });
+                if (!verify.success) {
+                    throw new Error(verify.error || "Неверный ACCESS KEY Циан");
+                }
+            }
+            if (["SUTOCHNO", "YANDEX_TRAVEL", "OSTROVOK", "HOSTAWAY", "CHANNEX", "BOOKING", "GUESTY"].includes(body.platform) && body.mode === "OPEN_API") {
+                if (body.authToken || body.clientId || body.clientSecret || body.outboundEndpoint) {
+                    setLandlordStatus("onbIntStatus", "Проверка партнёрского API...");
+                    const verify = await landlordApi("/api/integrations/partner/verify", "POST", body);
+                    if (!verify.success) {
+                        throw new Error(verify.message || "Партнёрский API не принял ключи");
+                    }
+                }
+            }
+            await landlordApi("/api/landlord/integrations", "POST", body);
+            setLandlordStatus("onbIntStatus", "Канал сохранён");
+        } catch (err) {
+            setLandlordStatus("onbIntStatus", err.message, false);
+        }
+    });
+    document.getElementById("back3").addEventListener("click", () => showStep(2));
+    document.getElementById("skipInt").addEventListener("click", () => showStep(4));
+    document.getElementById("next3").addEventListener("click", async () => {
+        await loadOnbTemplates();
+        showStep(4);
+    });
+
+    async function loadOnbTemplates() {
+        try {
+            const list = await landlordApi("/api/landlord/documents/templates", "GET") || [];
+            const ul = document.getElementById("onbTemplatesList");
+            ul.innerHTML = list.map(t => {
+                const sys = t.system || !t.landlord ? " <span class=\"pill\" style=\"background:#f1f5f9;color:var(--muted);\">Системный</span>" : "";
+                return `<li class="template-row"><strong>${escapeHtml(t.title)}</strong>${sys}<span class="muted" style="font-size:0.78rem;"> · ${t.documentType}</span></li>`;
+            }).join("") || "<li class=\"muted\">Нет шаблонов</li>";
+        } catch(e) {
+            document.getElementById("onbTemplateStatus").textContent = "Не удалось загрузить шаблоны";
+        }
+    }
+
+    document.getElementById("skipTemplate")?.addEventListener("click", () => showStep(5));
+    document.getElementById("next4")?.addEventListener("click", () => showStep(5));
+    document.getElementById("back4").addEventListener("click", () => showStep(3));
+
+    document.getElementById("back5")?.addEventListener("click", () => showStep(4));
+    document.getElementById("finishOnboarding").addEventListener("click", async () => {
+        try {
+            await landlordApi("/api/landlord/onboarding/complete", "POST");
+            window.location.href = "/app";
+        } catch (err) {
+            setLandlordStatus("finishStatus", err.message, false);
+        }
+    });
+
+    (async () => {
+        const me = await landlordApi("/api/landlord/me", "GET");
+        if (me && me.name) document.getElementById("profName").value = me.name;
+        if (me && me.surname) document.getElementById("profSurname").value = me.surname;
+        await refreshOnbProperties();
+        showStep(0);
+    })();
+</script>
+</body>
+</html>

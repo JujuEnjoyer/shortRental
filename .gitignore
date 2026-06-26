@@ -31,3 +31,31 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Secrets ###
+.env
+.env.*
+!.env.example
+
+### Local runtime data ###
+/storage/
+/.m2/
+*.log
+
+### Personal diploma / presentation materials ###
+/05.doc
+/*.doc
+/*.docx
+/*.pdf
+/*.ppt
+/*.pptx
+/agents.md
+/itmo_motivation_letters.md
+/sources_and_footnotes_kovtan.md
+/scripts/
+/docs/defense_*.md
+/docs/google-form-*.gs
+/docs/presentation-*.md
+/docs/shware_*.md
+/docs/testing-plan.md
+/docs/prediplom_practice/
