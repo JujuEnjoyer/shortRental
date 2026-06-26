@@ -132,14 +132,6 @@ src/main/java/com/rental/shortrental
 └── user           # пользователи, гости, настройки профиля
 ```
 
-## Материалы для презентации
-
-Диаграммы и тезисы находятся в каталоге `docs`:
-
-- [docs/presentation-engineering-diagrams.md](docs/presentation-engineering-diagrams.md);
-- [docs/shware_competition_upgrade_plan.md](docs/shware_competition_upgrade_plan.md);
-- [docs/security-and-privacy.md](docs/security-and-privacy.md).
-
 ## Статус
 
 Проект является учебным инженерным прототипом. Он демонстрирует архитектуру, ключевые пользовательские сценарии, интеграционный подход, работу с документами, безопасность публичного контура и измеримый эффект автоматизации.
